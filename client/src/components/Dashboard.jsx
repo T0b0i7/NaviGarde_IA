@@ -5,7 +5,6 @@ import {
   Bell,
   User,
   Activity,
-  PieChart,
   AlertTriangle,
   FileText,
   ChevronRight,
@@ -38,7 +37,6 @@ const statCards = [
     yesterday: 3,
     icon: <Bell className="h-5 w-5" />,
     bgClass: 'bg-red-100 text-red-600',
-    trendDown: false,
   },
   {
     id: 'reports',
@@ -83,19 +81,19 @@ const urgentAlerts = [
     title: 'Alerte de détresse – Pirogue N°BK-0421',
     subtitle: 'Il y a 12 min - Zone de Cotonou',
     icon: <ShieldAlert className="h-5 w-5" />,
-    iconBg: 'bg-red-100',
+    iconBg: 'bg-red-100 text-red-600',
   },
   {
     title: 'Panne moteur – Vedette N°BN-1187',
     subtitle: 'Il y a 28 min - Porto-Novo',
     icon: <AlertTriangle className="h-5 w-5" />,
-    iconBg: 'bg-amber-100',
+    iconBg: 'bg-amber-100 text-amber-600',
   },
   {
     title: 'Problème météo – Pirogue N°BK-0765',
     subtitle: 'Il y a 45 min - Ouidah',
     icon: <AlertTriangle className="h-5 w-5" />,
-    iconBg: 'bg-amber-100',
+    iconBg: 'bg-amber-100 text-amber-600',
   },
 ];
 
@@ -187,14 +185,14 @@ const navItems = [
 ];
 
 /* -------------------------------------------------------------------------- */
-/* Composant principal                                                        */
+/* Composant principal — mode Operate                                         */
 /* -------------------------------------------------------------------------- */
 
 export default function Dashboard() {
   const [activeNav, setActiveNav] = useState('dashboard');
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden">
+    <div className="flex h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden">
       {/* ---------- Sidebar ---------- */}
       <aside className="w-64 bg-blue-900 text-white flex flex-col shrink-0">
         <div className="p-5 flex items-center space-x-3">
@@ -255,7 +253,7 @@ export default function Dashboard() {
       {/* ---------- Main content ---------- */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 z-10">
+        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 z-10">
           <div className="flex items-center space-x-4">
             <div className="relative w-72 md:w-96">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -470,7 +468,7 @@ export default function Dashboard() {
             {/* Donut + légende */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-5 flex items-center space-x-2">
-                <PieChart className="h-4 w-4 text-red-500" />
+                <AlertTriangle className="h-4 w-4 text-red-500" />
                 Répartition des risques
               </h3>
 
@@ -649,7 +647,7 @@ export default function Dashboard() {
 
                 <div className="mt-5 p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-center">
                   <p className="text-[10px] italic text-slate-500 dark:text-slate-400 leading-relaxed">
-                    "Des mers plus sûres pour un avenir durable"
+                    Des mers plus sûres pour un avenir durable
                   </p>
                 </div>
               </div>
