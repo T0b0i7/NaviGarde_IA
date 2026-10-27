@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "node --watch src/server.js",
+    "dev:all": "concurrently \"npm run dev\" \"cd client && npm run dev\"",
     "start": "node src/server.js",
     "db:init": "node src/scripts/initDb.js",
     "test:smoke": "node tests/smoke-inspect.mjs",
@@ -27,5 +28,8 @@
     "pg": "^8.13.1",
     "qrcode": "^1.5.4",
     "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
   }
 }
