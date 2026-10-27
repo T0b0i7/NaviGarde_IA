@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Agent principal utilisé pour le développement du MVP.
+  "default_agent": "build",
+
+  // Formatage automatique après écriture de fichier.
+  "formatter": true,
+
+  // AGENTS.md à la racine est découvert automatiquement : inutile de le lister ici.
+  // N'ajoute "instructions" que pour des fichiers complémentaires (docs/guidelines/*.md).
+
+  "permissions": [
+    { "action": "shell", "resource": "git push *", "effect": "ask" },
+    { "action": "shell", "resource": "rm *", "effect": "ask" },
+  ],
+}

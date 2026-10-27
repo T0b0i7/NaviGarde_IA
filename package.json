@@ -1,0 +1,31 @@
+{
+  "name": "navigarde-ia",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "NaviGarde IA — assistance multimodale et sécurité maritime (Bénin)",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "db:init": "node src/scripts/initDb.js",
+    "test:smoke": "node tests/smoke-inspect.mjs",
+    "test:audio": "node tests/smoke-audio.mjs",
+    "test:reports": "node tests/smoke-reports.mjs",
+    "test:pdf": "node tests/smoke-pdf.mjs",
+    "test:db": "node tests/db-persistence.mjs"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "multer": "^2.0.1",
+    "pdfkit": "^0.20.2",
+    "pg": "^8.13.1",
+    "qrcode": "^1.5.4",
+    "zod": "^3.23.8"
+  }
+}
