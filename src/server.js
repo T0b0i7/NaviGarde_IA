@@ -13,6 +13,7 @@ import { HttpError } from './lib/httpError.js';
 import { audioRouter } from './routes/audio.js';
 import { inspectRouter } from './routes/inspect.js';
 import { reportsRouter } from './routes/reports.js';
+import authRouter from './routes/auth.js';
 
 const app = express();
 const PORT = Number(process.env.PORT ?? 3000);
@@ -51,6 +52,7 @@ app.get('/api/v1/health', async (req, res) => {
 /* Routes métier                                                              */
 /* -------------------------------------------------------------------------- */
 
+app.use('/api/v1', authRouter);
 app.use('/api/v1', inspectRouter);
 app.use('/api/v1', audioRouter);
 app.use('/api/v1', reportsRouter);

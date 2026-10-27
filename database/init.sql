@@ -99,4 +99,36 @@ CREATE INDEX IF NOT EXISTS idx_reports_inspection      ON reports (inspection_id
 CREATE INDEX IF NOT EXISTS idx_reports_alert           ON reports (alert_id);
 CREATE INDEX IF NOT EXISTS idx_reports_status          ON reports (status);
 
+-- ---------------------------------------------------------------------------
+-- utilisateurs : authentification et contrôle d'accès (EF-01 à EF-05)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS users (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nom           VARCHAR(120) NOT NULL,
+  email         VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  role          VARCHAR(30)  NOT NULL DEFAULT 'agent'
+                    CHECK (role IN ('agent', 'supervisor', 'admin')),
+    actif       BOOLEAN      NOT NULL DEFAULT true,
+  created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email   ON users (email);
+CREATE INDEX IF NOT EXISTS idx_users_role    ON users (role);
+CREATE INDEX IF NOT EXISTS idx_users_actif   ON users (actif);
+
+-- Index supplémentaires pour le dashboard et les filtres métier.
+CREATE INDEX IF NOT EXISTS idx_inspections_created_at  ON inspections (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_inspections_risk_level  ON inspections (risk_level);
+CREATE INDEX IF NOT EXISTS idx_inspections_status      ON inspections (status);
+
+CREATE INDEX IF NOT EXISTS idx_alerts_created_at       ON alerts (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_alerts_status_urgency   ON alerts (status, urgency);
+CREATE INDEX IF NOT EXISTS idx_alerts_inspection       ON alerts (inspection_id);
+
+CREATE INDEX IF NOT EXISTS idx_reports_inspection      ON reports (inspection_id);
+CREATE INDEX IF NOT EXISTS idx_reports_alert           ON reports (alert_id);
+CREATE INDEX IF NOT EXISTS idx_reports_status          ON reports (status);
+
 COMMIT;

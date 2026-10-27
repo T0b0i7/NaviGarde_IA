@@ -1,41 +1,89 @@
+/**
+ * Garde d'authentification et contrôle d'accès par rôle (EF-01, EF-02, EF-04).
+ *
+ * Remplace le squelette `x-dev-role` par une vérification JWT :
+ *   - le token arrive dans l'en-tête `Authorization: Bearer <jwt>` ;
+ *   - le JWT est signé, de durée courte (JWT_EXPIRES_IN, défaut 30 min) ;
+ *   - `req.user` est peuplé avec { sub, email, role } issu du token.
+ *
+ * La signature de la fonction ne change pas : les routes existantes n'ont pas
+ * à être modifiées (requireRole('agent', 'supervisor', ...) fonctionne tel quel).
+ */
+
 import { HttpError } from '../lib/httpError.js';
+import { verifyToken } from '../services/authService.js';
 
 const ROLES_CONNUS = new Set(['agent', 'supervisor', 'admin', 'sailor']);
 
+function extractToken(req) {
+  const header = req.get('Authorization') ?? '';
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1] : null;
+}
+
 /**
- * Garde de rôle (RBAC) — squelette de développement.
- *
- * TODO Phase 1 (EF-01 / EF-02) : remplacer la lecture de l'en-tête `x-dev-role`
- * par la vérification d'un JWT signé (durée courte) et charger l'utilisateur
- * depuis la base. La signature de la fonction ne changera pas : les routes
- * n'auront pas à être modifiées.
- *
- * En attendant, un utilisateur sans en-tête reçoit 401 et un utilisateur avec
- * un rôle non autorisé reçoit 403 — ce qui permet déjà de valider T01 et T02.
- *
+ * Middleware : authentifie via JWT, puis vérifie le rôle.
  * @param {...string} rolesAutorises rôles acceptés sur la route
  */
 export function requireRole(...rolesAutorises) {
   return (req, res, next) => {
-    const role = req.get('x-dev-role');
+    const token = extractToken(req);
 
-    if (!role || !ROLES_CONNUS.has(role)) {
+    if (!token) {
       return next(
         new HttpError(
           401,
           'UNAUTHENTICATED',
-          "Authentification requise. En mode développement, fournir l'en-tête « x-dev-role » (agent, supervisor, admin, sailor).",
+          'Authentification requise. Fournissez un jeton Bearer dans l\'en-tête Authorization.',
         ),
       );
     }
 
-    if (!rolesAutorises.includes(role)) {
+    const payload = verifyToken(token);
+    if (!payload) {
       return next(
-        new HttpError(403, 'FORBIDDEN', `Le rôle « ${role} » n'est pas autorisé sur cette ressource.`),
+        new HttpError(401, 'TOKEN_INVALID_OR_EXPIRED', 'Jeton invalide ou expiré. Reconnexion requise.'),
       );
     }
 
-    req.user = { role }; // remplacé par l'utilisateur issu du JWT en Phase 1
+    if (!ROLES_CONNUS.has(payload.role)) {
+      return next(new HttpError(403, 'ROLE_UNKNOWN', `Rôle inconnu : ${payload.role}.`));
+    }
+
+    if (!rolesAutorises.includes(payload.role)) {
+      return next(
+        new HttpError(403, 'FORBIDDEN', `Le rôle '${payload.role}' n'est pas autorisé sur cette ressource.`),
+      );
+    }
+
+    req.user = payload; // { sub, email, role }
     return next();
   };
 }
+
+/** Middleware léger : authentifie sans vérifier de rôle particulier. */
+export function requireAuth(req, res, next) {
+  const token = extractToken(req);
+
+  if (!token) {
+    return next(
+      new HttpError(
+        401,
+        'UNAUTHENTICATED',
+        'Authentification requise. Fournissez un jeton Bearer dans l\'en-tête Authorization.',
+      ),
+    );
+  }
+
+  const payload = verifyToken(token);
+  if (!payload) {
+    return next(
+      new HttpError(401, 'TOKEN_INVALID_OR_EXPIRED', 'Jeton invalide ou expiré. Reconnexion requise.'),
+    );
+  }
+
+  req.user = payload;
+  return next();
+}
+
+export { ROLES_CONNUS };
