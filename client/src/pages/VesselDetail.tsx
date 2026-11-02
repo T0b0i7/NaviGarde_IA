@@ -1,19 +1,176 @@
 import { useState } from "react";
 import { AlertTriangle, Anchor, ArrowLeft, CalendarDays, Check, ChevronRight, Download, Edit3, FileText, Info, MapPin, MoreHorizontal, Navigation, PauseCircle, Printer, Share2, ShieldCheck, Sparkles, Wrench, X } from "lucide-react";
 import { Link } from "wouter";
-import AppShell from "@/components/AppShell";
 import { toast } from "sonner";
+import AppShell from "@/components/AppShell";
 
 export default function VesselDetail() {
-  const [tab, setTab] = useState("general"); const [active, setActive] = useState(true); const [shared, setShared] = useState(false); const [alertOpen, setAlertOpen] = useState(true);
-  const tabs = [["general", "Informations générales", Info], ["history", "Historique des inspections", FileText], ["photos", "Photos & Documents", Download], ["maintenance", "Maintenance", Wrench], ["location", "Localisation", MapPin]] as const;
-  const print = () => { window.print(); toast.success("Impression préparée"); }; const share = () => { setShared(true); toast.success("Lien de partage copié"); };
-  return <AppShell><div className="vessel-detail-page"><div className="vessel-detail-head"><div><Link href="/embarcations" className="back-link"><ArrowLeft size={16} /> Retour</Link><h1>Détail d’une embarcation</h1><p>Consultez toutes les informations et l’historique de cette embarcation.</p></div><div className="head-actions"><button className="secondary-button" onClick={print}><Printer size={16} /> Imprimer</button><button className="secondary-button" onClick={() => toast.success("Rapport téléchargé")}><Download size={16} /> Télécharger le rapport</button><button className="secondary-button" onClick={share}><Share2 size={16} /> {shared ? "Lien copié" : "Partager"}</button></div></div><section className="vessel-hero-detail"><div className="vessel-hero-photo"><img src="/boat-inspection.jpg" alt="Pirogue Océan" /><span className="hero-active"><Check size={14} /> {active ? "Active" : "Inactive"}</span><span className="hero-more">Voir plus (5)</span></div><div className="vessel-identity"><h2>Pirogue Océan</h2><strong>N°BK-0421 <button onClick={() => toast.success("Immatriculation copiée")}><FileText size={16} /></button></strong><DetailFact icon={<Anchor size={15} />} label="Type" value="Pirogue" /><DetailFact icon={<Navigation size={15} />} label="Longueur" value="8,50 m" /><DetailFact icon={<Navigation size={15} />} label="Largeur" value="2,50 m" /><DetailFact icon={<ShieldCheck size={15} />} label="Capacité" value="12 passagers" /><DetailFact icon={<Info size={15} />} label="Propriétaire" value="Koffi DOSSA" /><DetailFact icon={<MapPin size={15} />} label="Port d’attache" value="Porto-Novo" /></div><Gauge title="Niveau de risque" value="Faible" tone="risk" /><Gauge title="Score de conformité" value="92%" tone="score" /><div className="current-alerts"><div className="alert-title"><AlertTriangle size={17} /> Alertes en cours <b>1</b></div>{alertOpen && <button className="vessel-alert" onClick={() => setAlertOpen(false)}><strong>Gilet de sauvetage manquant</strong><span>Risque : <em>Moyen</em></span><small>Constatée le : 29/10/2025</small><ChevronRight size={17} /></button>}</div></section><nav className="vessel-detail-tabs">{tabs.map(([key, label, Icon]) => <button className={tab === key ? "active" : ""} key={key} onClick={() => setTab(key)}><Icon size={16} /> {label}</button>)}</nav>{tab === "general" && <><div className="vessel-detail-grid"><section className="panel identity-card"><CardTitle icon={<Info size={17} />} title="Fiche d’identité" /><Line label="Nom de l’embarcation" value="Pirogue Océan" /><Line label="Immatriculation" value="N°BK-0421" /><Line label="Type" value="Pirogue" accent /><Line label="Année de construction" value="2018" /><Line label="Propriétaire" value="Koffi DOSSA" /><Line label="Contact" value="+229 97 12 34 56" /><Line label="Port d’attache" value="Porto-Novo" accent /><Line label="Statut" value={active ? "Active" : "Inactive"} badge /></section><section className="panel identity-card"><CardTitle icon={<Wrench size={17} />} title="Caractéristiques techniques" /><Line label="Longueur" value="8,50 m" /><Line label="Largeur" value="2,50 m" /><Line label="Tirant d’eau" value="1,20 m" /><Line label="Capacité" value="12 passagers" /><Line label="Moteur" value="75 CV" /><Line label="Carburant" value="Diesel" /></section><section className="panel last-inspection"><CardTitle icon={<CalendarDays size={17} />} title="Dernière inspection" action={<span className="mini-conform"><Check size={12} /> Conforme</span>} /><div className="last-inspection-body"><img src="/boat-inspection.jpg" alt="Inspection" /><div><Line label="Date" value="29/10/2025" /><Line label="Score" value="92%" accent /><Line label="Agent" value="Koffi DOSSA" /></div></div><Link href="/inspections/RPT-2025-0412" className="outline-action">Voir le rapport <ChevronRight size={15} /></Link></section><section className="panel location-card"><CardTitle icon={<MapPin size={17} />} title="Localisation actuelle" /><div className="map-placeholder"><MapPin size={34} /><span>Porto-Novo</span></div><strong>Porto-Novo, Bénin</strong><small>6.4969° N, 2.6273° E</small><button className="outline-action" onClick={() => toast.info("Carte opérationnelle ouverte")}>Voir sur la carte <ChevronRight size={15} /></button></section></div><div className="vessel-bottom-grid"><section className="panel history-card"><CardTitle icon={<FileText size={17} />} title="Historique des inspections" action={<button className="text-link" onClick={() => setTab("history")}>Voir tout l’historique <ChevronRight size={14} /></button>} /><table className="history-table"><thead><tr><th>Date</th><th>Type d’inspection</th><th>Résultat</th><th>Score</th><th>Agent</th><th>Actions</th></tr></thead><tbody><HistoryRow date="29/10/2025" type="Inspection complète" result="Conforme" score="92%" agent="Koffi DOSSA" /><HistoryRow date="15/08/2025" type="Contrôle de sécurité" result="Conforme" score="95%" agent="Koffi DOSSA" /><HistoryRow date="02/06/2025" type="Inspection périodique" result="Anomalies mineures" score="78%" agent="Adama HOUNGBÉ" /></tbody></table></section><section className="panel recommendations-card"><CardTitle icon={<Sparkles size={17} />} title="Recommandations IA" /><Recommendation text="Maintenir le matériel de sécurité." /><Recommendation text="Vérifier régulièrement le moteur." /><Recommendation text="Renforcer le gilet de sauvetage." /><button className="primary-button" onClick={() => toast.success("Recommandations téléchargées")}><Download size={15} /> Télécharger les recommandations</button></section><section className="panel vessel-actions-card"><CardTitle icon={<Wrench size={17} />} title="Actions rapides" /><button className="primary-button" onClick={() => toast.success("Inspection planifiée")}><CalendarDays size={15} /> Planifier une inspection</button><button className="secondary-button" onClick={() => toast.success("Mode édition activé")}><Edit3 size={15} /> Mettre à jour les informations</button><button className="danger-outline" onClick={() => { setActive((value) => !value); toast.success(active ? "Embarcation désactivée" : "Embarcation activée"); }}>{active ? <PauseCircle size={15} /> : <Check size={15} />} {active ? "Désactiver l’embarcation" : "Activer l’embarcation"}</button></section></div></>}{tab !== "general" && <section className="panel vessel-tab-placeholder"><div className="analysis-orb"><Sparkles size={30} /></div><h2>{tabs.find(([key]) => key === tab)?.[1]}</h2><p>Cette vue est prête pour les documents, les interventions de maintenance, les historiques détaillés et les positions GPS.</p><button className="primary-button" onClick={() => setTab("general")}>Revenir aux informations générales</button></section>}{shared && <div className="share-toast"><Check size={15} /> Lien de partage copié dans le presse-papiers</div>}</div></AppShell>;
+  const [tab, setTab] = useState("general");
+  const [active, setActive] = useState(true);
+  const [shared, setShared] = useState(false);
+  const [alertOpen, setAlertOpen] = useState(true);
+
+  const tabs: { key: string; label: string; Icon: React.ComponentType<any> }[] = [
+    { key: "general", label: "Informations générales", Icon: Info },
+    { key: "history", label: "Historique des inspections", Icon: FileText },
+    { key: "photos", label: "Photos & Documents", Icon: Download },
+    { key: "maintenance", label: "Maintenance", Icon: Wrench },
+    { key: "location", label: "Localisation", Icon: MapPin },
+  ];
+
+  const print = () => { window.print(); toast.success("Impression préparée"); };
+  const share = () => { setShared(true); toast.success("Lien de partage copié"); };
+
+  return (
+    <AppShell>
+      <div className="page-header">
+        <div>
+          <Link href="/embarcations" className="back-link"><ArrowLeft size={16} /> Retour</Link>
+          <h1 className="page-title">Détail d'une embarcation</h1>
+          <p className="page-subtitle">Consultez toutes les informations et l'historique de cette embarcation.</p>
+        </div>
+        <div className="head-actions">
+          <button className="btn btn-secondary" onClick={print}><Printer size={16} /> Imprimer</button>
+          <button className="btn btn-secondary" onClick={() => toast.success("Rapport téléchargé")}><Download size={16} /> Télécharger le rapport</button>
+          <button className="btn btn-secondary" onClick={share}><Share2 size={16} /> {shared ? "Lien copié" : "Partager"}</button>
+        </div>
+      </div>
+
+      <section className="vessel-detail-page">
+        <div className="vessel-hero-detail">
+          <div className="vessel-hero-photo">
+            <img src="/boat-inspection.jpg" alt="Pirogue Océan" />
+            <span className="hero-active"><Check size={14} /> {active ? "Active" : "Inactive"}</span>
+            <span className="hero-more">Voir plus (5)</span>
+          </div>
+          <div className="vessel-identity">
+            <h2>Pirogue Océan</h2>
+            <strong>N°BK-0421 <button onClick={() => toast.success("Immatriculation copiée")}><FileText size={16} /></button></strong>
+            <DetailFact icon={<Anchor size={15} />} label="Type" value="Pirogue" />
+            <DetailFact icon={<Navigation size={15} />} label="Longueur" value="8,50 m" />
+            <DetailFact icon={<Navigation size={15} />} label="Largeur" value="2,50 m" />
+            <DetailFact icon={<ShieldCheck size={15} />} label="Capacité" value="12 passagers" />
+            <DetailFact icon={<Info size={15} />} label="Propriétaire" value="Koffi DOSSA" />
+            <DetailFact icon={<MapPin size={15} />} label="Port d'attache" value="Porto-Novo" />
+          </div>
+          <div className="vessel-gauge-card">
+            <div className="vessel-gauge">
+              <h3>Niveau de risque</h3>
+              <div className="gauge-arc"><span><ShieldCheck size={28} /></span></div>
+              <strong>Faible</strong>
+              <em>Dernière évaluation :<br />29/10/2025</em>
+            </div>
+            <div className="vessel-gauge">
+              <h3>Score de conformité</h3>
+              <div className="gauge-arc"><span>92%</span></div>
+              <strong>Très bon</strong>
+              <em>Dernière évaluation :<br />29/10/2025</em>
+            </div>
+          </div>
+        </div>
+
+        <div className="vessel-tabs">
+          {tabs.map((t) => (
+            <button key={t.key} className={`tab-btn ${tab === t.key ? "tab-active" : ""}`} onClick={() => setTab(t.key)}>
+              <t.Icon size={16} /> {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "general" && (
+          <div className="card">
+            <div className="card-body">
+              <div className="current-alerts">
+                <div className="alert-title"><AlertTriangle size={17} /> Alertes en cours <b>1</b></div>
+                {alertOpen && (
+                  <button className="btn btn-secondary vessel-alert" onClick={() => setAlertOpen(false)}>
+                    <strong>Gilet de sauvetage manquant</strong>
+                    <span style={{ fontSize: "11px", color: "var(--ng-text-muted)" }}>Pièce manquante à bord - action requise avant départ</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === "history" && (
+          <div className="card">
+            <div className="card-body" style={{ paddingTop: 0, overflowX: "auto" }}>
+              <table className="table">
+                <thead>
+                  <tr><th>Date</th><th>Type</th><th>Résultat</th><th>Score</th><th>Agent</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>29/10/2025</td><td>Inspection</td><td><span className="badge badge-success"><Check size={12} /> Conforme</span></td><td>88/100</td><td>Koffi DOSSA</td><td><button className="icon-btn"><EyeIcon /></button></td>
+                  </tr>
+                  <tr>
+                    <td>15/09/2025</td><td>Inspection</td><td><span className="badge badge-warning"><AlertTriangle size={12} /> À vérifier</span></td><td>62/100</td><td>Thomas ADJE</td><td><button className="icon-btn"><EyeIcon /></button></td>
+                  </tr>
+                  <tr>
+                    <td>03/08/2025</td><td>Inspection</td><td><span className="badge badge-success"><Check size={12} /> Conforme</span></td><td>91/100</td><td>Adelaide HOUND</td><td><button className="icon-btn"><EyeIcon /></button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {tab === "photos" && (
+          <div className="card">
+            <div className="card-body">
+              <div className="photo-grid">
+                <div className="photo-item"><img src="/boat-inspection.jpg" alt="Photo 1" /><span>29/10/2025</span></div>
+                <div className="photo-item"><img src="/boat-inspection.jpg" alt="Photo 2" /><span>29/10/2025</span></div>
+                <div className="photo-item"><img src="/boat-inspection.jpg" alt="Photo 3" /><span>15/09/2025</span></div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === "maintenance" && (
+          <div className="card">
+            <div className="card-body">
+              <div className="maintenance-list">
+                <div className="maintenance-item">
+                  <strong>Vidange moteur</strong><span>29/10/2024 · À faire dans 6 mois</span>
+                </div>
+                <div className="maintenance-item">
+                  <strong>Vérification coque</strong><span>15/09/2025 · Effectuée</span>
+                </div>
+                <div className="maintenance-item">
+                  <strong>Révision électronique</strong><span>03/08/2025 · À faire dans 3 mois</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === "location" && (
+          <div className="card">
+            <div className="card-body">
+              <div className="map-placeholder">
+                <div className="map-icon"><MapPin size={40} /></div>
+                <p>Carte interactive de la zone de navigation - Porto-Novo</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+    </AppShell>
+  );
 }
-function DetailFact({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) { return <div className="vessel-detail-fact">{icon}<span>{label} :</span><strong>{value}</strong></div>; }
-function Gauge({ title, value, tone }: { title: string; value: string; tone: string }) { return <div className={`vessel-gauge ${tone}`}><h3>{title}</h3><div className="gauge-arc"><span>{tone === "risk" ? <ShieldCheck size={28} /> : value}</span></div><strong>{value}</strong>{tone === "score" && <small>Très bon</small>}<em>Dernière évaluation :<br />29/10/2025</em></div>; }
-function CardTitle({ icon, title, action }: { icon: React.ReactNode; title: string; action?: React.ReactNode }) { return <div className="vessel-card-title"><div>{icon}<strong>{title}</strong></div>{action}</div>; }
-function Line({ label, value, accent, badge }: { label: string; value: string; accent?: boolean; badge?: boolean }) { return <div className="vessel-line"><span>{label} :</span>{badge ? <b className="mini-active"><Check size={11} /> {value}</b> : <strong className={accent ? "accent" : ""}>{value}</strong>}</div>; }
-function HistoryRow({ date, type, result, score, agent }: { date: string; type: string; result: string; score: string; agent: string }) { return <tr><td>{date}</td><td>{type}</td><td><span className={result === "Conforme" ? "history-ok" : "history-warning"}>{result === "Conforme" ? <Check size={12} /> : <AlertTriangle size={12} />} {result}</span></td><td>{score}</td><td>{agent}</td><td><button className="icon-action"><EyeIcon /></button></td></tr>; }
-function Recommendation({ text }: { text: string }) { return <p className="recommendation-line"><Check size={15} /> {text}</p>; }
-function EyeIcon() { return <span className="eye-simple">◉</span>; }
+
+function DetailFact({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="vessel-detail-fact">
+      {icon}
+      <span>{label} :</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function EyeIcon() {
+  return <span className="eye-simple">◉</span>;
+}
