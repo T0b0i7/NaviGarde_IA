@@ -1,12 +1,66 @@
 import { useState } from "react";
 import { BellRing, Check, Lock, Palette, Save, ShieldCheck, SlidersHorizontal, UserRound } from "lucide-react";
+import { Link } from "wouter";
+import { toast } from "sonner";
 import AppShell from "@/components/AppShell";
 import { trpc } from "@/lib/trpc";
 
 export default function Settings() {
-  const settingsQuery = trpc.data.settings.get.useQuery(); const saveSettings = trpc.data.settings.save.useMutation();
+  const settingsQuery = trpc.data.settings.get.useQuery();
+  const saveSettings = trpc.data.settings.save.useMutation();
   const stored = Object.fromEntries((settingsQuery.data ?? []).map((item) => [item.settingKey, item.value]));
-  const [saved, setSaved] = useState(false); const [compact, setCompact] = useState(false); const [critical, setCritical] = useState(stored.risk_critical ?? "80"); const [high, setHigh] = useState(stored.risk_high ?? "60"); const [notifications, setNotifications] = useState(stored.notifications_enabled !== "false");
-  const save = async () => { await saveSettings.mutateAsync({ settings: { compact_mode: String(compact), risk_critical: critical, risk_high: high, notifications_enabled: String(notifications) } }); setSaved(true); window.setTimeout(() => setSaved(false), 2200); };
-  return <AppShell><div className="module-head"><div><span className="eyebrow">Configuration du centre</span><h1>Paramètres opérationnels</h1><p>Adaptez NaviGarde IA à votre organisation et à vos protocoles.</p></div><button className="primary-button" onClick={save}><Save size={16} /> Enregistrer</button></div>{saved && <div className="save-toast"><Check size={16} /> Configuration enregistrée</div>}<div className="settings-layout"><div className="settings-nav"><button className="settings-nav-item active"><UserRound size={17} /> Profil et accès</button><button className="settings-nav-item"><BellRing size={17} /> Notifications</button><button className="settings-nav-item"><SlidersHorizontal size={17} /> Seuils de risque</button><button className="settings-nav-item"><Palette size={17} /> Affichage</button></div><div className="settings-content"><section className="panel settings-card"><div className="settings-card-head"><div><h2>Profil superviseur</h2><p>Informations affichées dans les décisions et l’audit.</p></div><span className="tag status-closed"><ShieldCheck size={13} /> Vérifié</span></div><div className="profile-edit"><div className="avatar huge">TA</div><div className="field-grid two"><label className="field"><span>Nom complet</span><input defaultValue="Thomas ADJÉ" /></label><label className="field"><span>Rôle</span><input defaultValue="Superviseur national" readOnly /></label><label className="field"><span>E-mail professionnel</span><input defaultValue="thomas@navigarde.bj" /></label><label className="field"><span>Zone de contrôle</span><input defaultValue="Littoral · Atlantique" /></label></div></div></section><section className="panel settings-card"><div className="settings-card-head"><div><h2>Seuils de décision IA</h2><p>Ces seuils déclenchent les niveaux d’alerte visuels. La validation humaine reste obligatoire.</p></div></div><div className="threshold-grid"><label className="threshold-row"><span><i className="threshold-dot orange" /> Risque élevé à partir de</span><div><input value={high} onChange={(e) => setHigh(e.target.value)} /><b>/100</b></div></label><label className="threshold-row"><span><i className="threshold-dot red" /> Risque critique à partir de</span><div><input value={critical} onChange={(e) => setCritical(e.target.value)} /><b>/100</b></div></label></div></section><section className="panel settings-card"><div className="settings-card-head"><div><h2>Préférences du cockpit</h2><p>Réglez la densité et les alertes de votre espace de travail.</p></div></div><label className="toggle-row"><span><BellRing size={18} /><div><strong>Notifications critiques</strong><small>Recevoir les nouvelles alertes de détresse en priorité.</small></div></span><input type="checkbox" checked={notifications} onChange={(e) => setNotifications(e.target.checked)} /><i /></label><label className="toggle-row"><span><SlidersHorizontal size={18} /><div><strong>Mode compact</strong><small>Afficher plus de lignes dans les tableaux opérationnels.</small></div></span><input type="checkbox" checked={compact} onChange={(e) => setCompact(e.target.checked)} /><i /></label></section><div className="settings-security"><Lock size={18} /><span>Les réglages sensibles sont journalisés dans le journal d’audit NaviGarde.</span></div></div></div></AppShell>
+  const [saved, setSaved] = useState(false);
+  const [compact, setCompact] = useState(stored.compact_mode === "true");
+  const [critical, setCritical] = useState(stored.risk_critical ?? "80");
+  const [high, setHigh] = useState(stored.risk_high ?? "60");
+  const [notifications, setNotifications] = useState(stored.notifications_enabled !== "false");
+
+  const save = async () => {
+    await saveSettings.mutateAsync({ settings: { compact_mode: String(compact), risk_critical: critical, risk_high: high, notifications_enabled: String(notifications) } });
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2200);
+  };
+
+  return (
+    <AppShell>
+      <div className="page-header">
+        <div>
+          <span className="eyebrow">Configuration du centre</span>
+          <h1 className="page-title">Paramètres opérationnels</h1>
+          <p className="page-subtitle">Adaptez NaviGarde IA à votre organisation et à vos protocoles.</p>
+        </div>
+        <button className="btn btn-primary" onClick={save}><Save size={16} /> Enregistrer</button>
+      </div>
+      {saved && <div className="ai-error" style={{ background: "#dcfce7", borderColor: "#86efac", color: "#16a34a" }}><Check size={16} /> Configuration enregistrée</div>}
+      <div className="card">
+        <div className="card-header">
+          <div>
+            <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "var(--ng-text)" }}>Profil superviseur</h2>
+            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--ng-text-muted)" }}>Informations affichées dans les décisions et l'audit.</p>
+          </div>
+          <span className="badge badge-success"><ShieldCheck size={13} /> Vérifié</span>
+        </div>
+        <div className="card-body" style={{ paddingTop: 0, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+          <label className="field"><span>Nom complet</span><input defaultValue="Thomas ADJÉ" className="input" /></label>
+          <label className="field"><span>Rôle</span><input defaultValue="Superviseur national" readOnly className="input" /></label>
+          <label className="field"><span>E-mail professionnel</span><input defaultValue="thomas@navigarde.bj" className="input" /></label>
+          <label className="field"><span>Zone de contrôle</span><input defaultValue="Littoral · Atlantique" className="input" /></label>
+        </div>
+      </div>
+      <div className="card" style={{ marginTop: 1 }}>
+        <div className="card-header">
+          <div>
+            <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "var(--ng-text)" }}>Seuils de décision IA</h2>
+            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--ng-text-muted)" }}>Ces seuils déclenchent les niveaux d'alerte visuels. La validation humaine reste obligatoire.</p>
+          </div>
+        </div>
+        <div className="card-body" style={{ paddingTop: 0, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+          <label className="field"><span>Seuil critique</span><input type="number" value={critical} onChange={(e) => setCritical(e.target.value)} min="0" max="100" className="input" /></label>
+          <label className="field"><span>Seuil élevé</span><input type="number" value={high} onChange={(e) => setHigh(e.target.value)} min="0" max="100" className="input" /></label>
+          <label className="field"><span>Mode compact</span><input type="checkbox" checked={compact} onChange={(e) => setCompact(e.target.checked)} style={{ margin: 0 }} /></label>
+          <label className="field"><span>Notifications</span><input type="checkbox" checked={notifications} onChange={(e) => setNotifications(e.target.checked)} style={{ margin: 0 }} /></label>
+        </div>
+      </div>
+    </AppShell>
+  );
 }

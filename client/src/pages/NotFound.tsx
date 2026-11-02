@@ -1,14 +1,10 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle, Home } from "lucide-react";
+import { ChevronLeft, Search, Waves } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { useEffect } from "react";
-import { useLocation } from "wouter";
+import AppShell from "@/components/AppShell";
 
-// Hosting answers this path with HTTP 404 while still serving the app.
 const NOT_FOUND_PATH = "/404";
 
-// Render for unknown routes and for items the server confirmed missing (e.g. `/page/:id`).
-// The redirect is irreversible: never render while loading, on other errors, or before auth resolves.
 export default function NotFound() {
   const [, setLocation] = useLocation();
 
@@ -17,12 +13,9 @@ export default function NotFound() {
     robots.name = "robots";
     robots.content = "noindex";
     document.head.appendChild(robots);
-
-    // Full-page navigation: a client-side route change sends no request, so no 404 status.
     if (window.location.pathname.replace(/\/$/, "") !== NOT_FOUND_PATH) {
       window.location.replace(NOT_FOUND_PATH);
     }
-
     return () => robots.remove();
   }, []);
 
@@ -31,42 +24,35 @@ export default function NotFound() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-      <Card className="w-full max-w-lg mx-4 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-        <CardContent className="pt-8 pb-8 text-center">
-          <div className="flex justify-center mb-6">
-            <div className="relative">
-              <div className="absolute inset-0 bg-red-100 rounded-full animate-pulse" />
-              <AlertCircle className="relative h-16 w-16 text-red-500" />
+    <AppShell>
+      <div className="login-page">
+        <div className="login-hero">
+          <div className="hero-overlay"></div>
+          <div className="hero-content">
+            <div className="brand">
+              <div className="brand-mark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12c0-2.8 1.3-5.3 3.3-6.9l-1.1-1.1C1.1 4.5 0 7.1 0 12c0 5.1 3.9 9.3 9 9.9.2.1.4.1.6.1.3 0 .6 0 .9-.1 5.3-.7 9.5-5.1 9.5-10.5 0-4.6-2.6-8.5-6.5-10.4l-1.1 1.1C6.3 7.6 9.6 4.1 12 4.1c4.1 0 7.5 3.4 7.5 7.5Z" /><path d="M12 19v3M12 3v3" /></svg>
+              </div>
+              <div className="brand-text">
+                <div className="brand-title">NaviGarde IA</div>
+                <div className="brand-subtitle">Sécurité maritime - Bénin</div>
+              </div>
             </div>
+            <h1 className="hero-title">Page introuvable</h1>
+            <p className="hero-subtitle">La page que vous recherchez n'existe pas ou a été déplacée.</p>
           </div>
-
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">404</h1>
-
-          <h2 className="text-xl font-semibold text-slate-700 mb-4">
-            Page Not Found
-          </h2>
-
-          <p className="text-slate-600 mb-8 leading-relaxed">
-            Sorry, the page you are looking for doesn't exist.
-            <br />
-            It may have been moved or deleted.
-          </p>
-
-          <div
-            id="not-found-button-group"
-            className="flex flex-col sm:flex-row gap-3 justify-center"
-          >
-            <Button
-              onClick={handleGoHome}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
-            >
-              <Home className="w-4 h-4 mr-2" />
-              Go Home
-            </Button>
+        </div>
+        <div className="login-form-panel">
+          <div className="login-header">
+            <span className="eyebrow">Erreur 404</span>
+            <h2>Page introuvable</h2>
+            <p>Revenez au tableau de bord pour continuer votre navigation.</p>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+          <div className="modal-actions">
+            <Link href="/" className="btn btn-primary"><ChevronLeft size={16} /> Retour au cockpit</Link>
+          </div>
+        </div>
+      </div>
+    </AppShell>
   );
 }
