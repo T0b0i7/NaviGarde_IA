@@ -95,10 +95,10 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function listVessels() {
+export async function listVessels(limit = 100, offset = 0) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(vessels).orderBy(desc(vessels.updatedAt));
+  return db.select().from(vessels).orderBy(desc(vessels.updatedAt)).limit(limit).offset(offset);
 }
 
 export async function createVessel(input: typeof vessels.$inferInsert) {
@@ -122,10 +122,10 @@ export async function deleteVessel(id: number) {
   return { success: true };
 }
 
-export async function listAlerts() {
+export async function listAlerts(limit = 100, offset = 0) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(alerts).orderBy(desc(alerts.createdAt));
+  return db.select().from(alerts).orderBy(desc(alerts.createdAt)).limit(limit).offset(offset);
 }
 
 export async function createAlert(input: typeof alerts.$inferInsert) {
@@ -301,10 +301,10 @@ export async function createInspection(input: typeof inspections.$inferInsert) {
   return { id: Number(result[0].insertId) };
 }
 
-export async function listInspections(limit = 100) {
+export async function listInspections(limit = 100, offset = 0) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  return db.select().from(inspections).orderBy(desc(inspections.inspectionDate)).limit(limit);
+  return db.select().from(inspections).orderBy(desc(inspections.inspectionDate)).limit(limit).offset(offset);
 }
 
 export async function getInspection(id: number) {
@@ -347,14 +347,14 @@ export async function listInspectionFindings(inspectionId: number) {
   return db.select().from(inspectionFindings).where(eq(inspectionFindings.inspectionId, inspectionId)).orderBy(desc(inspectionFindings.analyzedAt));
 }
 
-export async function listReports() {
+export async function listReports(limit = 100, offset = 0) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  return db.select().from(reports).orderBy(desc(reports.createdAt));
+  return db.select().from(reports).orderBy(desc(reports.createdAt)).limit(limit).offset(offset);
 }
 
 export async function dashboardMetrics(period: "24 heures" | "7 jours" | "30 jours") {
-  const [inspectionRows, alertRows, vesselRows, reportRows] = await Promise.all([listInspections(5000), listAlerts(), listVessels(), listReports()]);
+  const [inspectionRows, alertRows, vesselRows, reportRows] = await Promise.all([listInspections(1000), listAlerts(500), listVessels(500), listReports(500)]);
   const now = new Date();
   const days = period === "24 heures" ? 1 : period === "30 jours" ? 30 : 7;
   const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
