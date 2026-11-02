@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Download, Eye, FileCheck2, FileText, Filter, MoreVertical, Plus, RefreshCw, ShieldAlert, Sparkles, TriangleAlert } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronDown, ChevronRight, Download, Eye, FileText, Filter, Plus, ShieldAlert, Search, TriangleAlert } from "lucide-react";
 import { Link } from "wouter";
-import AppShell from "@/components/AppShell";
 import { toast } from "sonner";
+import AppShell from "@/components/AppShell";
 
 type Report = { ref: string; vessel: string; type: string; place: string; date: string; status: "Conforme" | "Anomalie mineure" | "Anomalie majeure" | "Critique"; score: number };
 const reports: Report[] = [
@@ -15,15 +15,110 @@ const reports: Report[] = [
 ];
 
 export default function ReportsCenter() {
-  const [period, setPeriod] = useState("7 derniers jours"); const [type, setType] = useState("Tous"); const [status, setStatus] = useState("Tous"); const [place, setPlace] = useState("Tous"); const [query, setQuery] = useState(""); const [selected, setSelected] = useState(reports[0]); const [page, setPage] = useState(1);
-  const filtered = useMemo(() => reports.filter((report) => `${report.ref} ${report.vessel} ${report.place}`.toLowerCase().includes(query.toLowerCase()) && (type === "Tous" || report.type === type) && (status === "Tous" || report.status === status) && (place === "Tous" || report.place === place)), [query, type, status, place]);
-  const apply = () => { setPage(1); toast.success(`Filtres appliqués · ${filtered.length} rapport${filtered.length > 1 ? "s" : ""} visible${filtered.length > 1 ? "s" : ""}`); };
-  const reset = () => { setPeriod("7 derniers jours"); setType("Tous"); setStatus("Tous"); setPlace("Tous"); setQuery(""); toast.success("Filtres réinitialisés"); };
-  return <AppShell><div className="reports-page"><div className="reports-head"><div><Link href="/" className="back-link"><ChevronLeft size={16} /> Retour</Link><span className="eyebrow">Centre de rapports</span><h1>Centre de rapports</h1><p>Consultez, téléchargez et gérez tous les rapports d’inspection de la flotte.</p></div><button className="primary-button" onClick={() => toast.success("Nouveau rapport prêt à être généré")}><Plus size={17} /> Nouveau rapport</button></div><div className="reports-layout"><main><div className="report-kpis"><Kpi icon={<FileText />} tone="blue" title="Total des rapports" value="128" detail="ce mois" trend="+12%" /><Kpi icon={<Check />} tone="green" title="Rapports conformes" value="89" detail="69% du total" /><Kpi icon={<TriangleAlert />} tone="orange" title="Rapports avec anomalies" value="32" detail="25% du total" /><Kpi icon={<ShieldAlert />} tone="red" title="Rapports critiques" value="7" detail="5% du total" /></div><div className="reports-chart-grid"><section className="panel report-chart"><ReportPanelTitle icon={<CalendarDays size={16} />} title="Évolution des rapports" action={<select value={period} onChange={(event) => setPeriod(event.target.value)}><option>7 derniers jours</option><option>30 derniers jours</option><option>Cette année</option></select>} /><div className="bar-chart"><div className="y-axis"><span>40</span><span>30</span><span>20</span><span>10</span><span>0</span></div><div className="bars">{[16,21,11,17,23,15,18,20,20,16,24,28,16,26,17,21,25,30,21,34,25].map((height, index) => <i key={index} style={{ height: `${height * 3.15}px` }} className={index % 4 === 1 ? "strong" : ""} />)}</div><div className="x-axis"><span>Sept 19</span><span>Sept 22</span><span>Sept 25</span><span>Sept 28</span><span>Oct 1</span><span>Oct 4</span><span>Oct 7</span></div></div></section><section className="panel report-chart"><ReportPanelTitle icon={<FileCheck2 size={16} />} title="Répartition des statuts" /><div className="status-chart"><div className="status-donut"><strong>128</strong><span>rapports</span></div><div className="status-legend"><Legend color="#10aa7b" label="Conforme" value="69%" count="(89)" /><Legend color="#f4bc1d" label="Anomalie mineure" value="20%" count="(26)" /><Legend color="#f27822" label="Anomalie majeure" value="7%" count="(9)" /><Legend color="#ed3e4b" label="Critique" value="5%" count="(4)" /></div></div></section></div><section className="panel reports-table-panel"><div className="reports-list-head"><ReportPanelTitle icon={<FileText size={16} />} title="Liste des rapports" /><div className="table-search wide"><Eye size={15} /><input placeholder="Rechercher un rapport..." value={query} onChange={(event) => setQuery(event.target.value)} /></div></div><div className="table-scroll"><table className="reports-table"><thead><tr><th>N° Rapport</th><th>Embarcation</th><th>Type d’inspection</th><th>Lieu</th><th>Date</th><th>Statut</th><th>Score IA</th><th>Actions</th></tr></thead><tbody>{filtered.map((report) => <tr key={report.ref} onClick={() => setSelected(report)} className={selected.ref === report.ref ? "selected-row" : ""}><td><strong className="report-ref"><FileText size={15} />{report.ref}</strong></td><td>{report.vessel}</td><td>{report.type}</td><td>{report.place}</td><td>{report.date}</td><td><span className={`report-status ${statusClass(report.status)}`}>{report.status === "Conforme" ? <Check size={12} /> : <TriangleAlert size={12} />}{report.status}</span></td><td><span className={`score-circle ${report.score >= 85 ? "good" : report.score >= 65 ? "medium" : "low"}`}>{report.score}%</span></td><td><div className="row-actions"><button className="icon-action" title="Voir" onClick={(event) => { event.stopPropagation(); setSelected(report); }}><Eye size={15} /></button><button className="icon-action" title="Télécharger" onClick={(event) => { event.stopPropagation(); toast.success(`${report.ref} téléchargé`); }}><Download size={15} /></button><button className="icon-action" title="Options"><MoreVertical size={15} /></button></div></td></tr>)}</tbody></table></div><div className="reports-pagination"><span>Affichage de 1 à {filtered.length} sur 128 rapports</span><div><button><ChevronLeft size={14} /></button><button className="current">{page}</button><button onClick={() => setPage((p) => p + 1)}>{page + 1}</button><button>3</button><button>4</button><button>5</button><span>…</span><button>22</button><button><ChevronRight size={14} /></button></div></div></section></main><aside className="report-filter-column"><section className="panel report-filter"><div className="filter-head"><strong><Filter size={17} /> Filtres de recherche</strong><button onClick={reset}><RefreshCw size={13} /> Réinitialiser</button></div><FilterField icon={<CalendarDays size={15} />} label="Période"><select value={period} onChange={(event) => setPeriod(event.target.value)}><option>7 derniers jours</option><option>30 derniers jours</option><option>Cette année</option></select></FilterField><FilterField icon={<ShieldAlert size={15} />} label="Type d’inspection"><select value={type} onChange={(event) => setType(event.target.value)}><option>Tous</option><option>Pirogue</option><option>Vedette</option><option>Barge</option></select></FilterField><FilterField icon={<TriangleAlert size={15} />} label="Statut"><select value={status} onChange={(event) => setStatus(event.target.value)}><option>Tous</option><option>Conforme</option><option>Anomalie mineure</option><option>Anomalie majeure</option><option>Critique</option></select></FilterField><FilterField icon={<FileText size={15} />} label="Embarcation"><select><option>Toutes</option><option>Pirogue N°BK-0421</option><option>Vedette N°BN-1187</option></select></FilterField><FilterField icon={<CalendarDays size={15} />} label="Lieu"><select value={place} onChange={(event) => setPlace(event.target.value)}><option>Tous</option><option>Porto-Novo</option><option>Cotonou</option><option>Ouidah</option><option>Grand-Popo</option></select></FilterField><button className="primary-button apply-filter" onClick={apply}><Eye size={16} /> Appliquer les filtres</button></section><section className="panel selected-report"><ReportPanelTitle icon={<FileText size={16} />} title="Rapport sélectionné" /><div className="selected-report-card"><div className="selected-report-title"><FileText size={18} /><div><strong>{selected.ref}</strong><small>{selected.vessel}</small></div><span className="report-status conform"><Check size={12} /> Conforme</span></div><DetailLine label="Date de création" value={selected.date} icon={<CalendarDays size={14} />} /><DetailLine label="Agent responsable" value="Koffi DOSSA" icon={<ShieldAlert size={14} />} /><DetailLine label="Embarcation" value={selected.vessel} icon={<FileText size={14} />} /><DetailLine label="Lieu" value={selected.place} icon={<CalendarDays size={14} />} /><Link className="view-report-button" href={`/inspections/${selected.ref}`}><Eye size={15} /> Voir le rapport complet</Link></div><div className="ai-help"><Sparkles size={22} /><span>L’IA vous aide à identifier les anomalies et à prioriser les actions de sécurité.<a href="#ai" onClick={(event) => { event.preventDefault(); toast.info("Analyse IA du rapport disponible"); }}>En savoir plus <ChevronRight size={13} /></a></span></div></section></aside></div></div></AppShell>;
+  const [period, setPeriod] = useState("7 derniers jours");
+  const [type, setType] = useState("Tous");
+  const [status, setStatus] = useState("Tous");
+  const [place, setPlace] = useState("Tous");
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => reports.filter((report) =>
+    `${report.ref} ${report.vessel} ${report.place}`.toLowerCase().includes(query.toLowerCase()) &&
+    (type === "Tous" || report.type === type) &&
+    (status === "Tous" || report.status === status) &&
+    (place === "Tous" || report.place === place)
+  ), [query, type, status, place]);
+
+  return (
+    <AppShell>
+      <div className="page-header">
+        <div>
+          <Link href="/" className="back-link"><ChevronLeft size={16} /> Retour</Link>
+          <span className="eyebrow">Centre de rapports</span>
+          <h1 className="page-title">Centre de rapports</h1>
+          <p className="page-subtitle">Consultez, téléchargez et gérez tous les rapports d'inspection de la flotte.</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => toast.success("Nouveau rapport prêt à être généré")}><Plus size={17} /> Nouveau rapport</button>
+      </div>
+
+      <section className="kpi-row">
+        <KpiCard icon={<FileText size={20} />} color="#2563eb" label="Total des rapports" value="128" delta="+12%" />
+        <KpiCard icon={<Check size={20} />} color="#0ca7b0" label="Rapports conformes" value="89" delta="69% du total" />
+        <KpiCard icon={<TriangleAlert size={20} />} color="#f59e0b" label="Rapports anomalies" value="32" delta="25% du total" />
+        <KpiCard icon={<ShieldAlert size={20} />} color="#ef4444" label="Rapports critiques" value="7" delta="5% du total" />
+      </section>
+
+      <div className="card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, marginBottom: 1 }}>
+          <div className="table-search" style={{ width: 300, position: "relative" }}>
+            <Search size={16} style={{ position: "absolute", left: "1rem", top: "50%", transform: "translateY(-50%)", color: "var(--ng-text-muted)" }} />
+            <input placeholder="Rechercher référence, bateau, zone…" value={query} onChange={(e) => setQuery(e.target.value)} className="input" style={{ paddingLeft: "2.5rem" }} />
+          </div>
+          <div className="filter-row">
+            <FilterPill label="Type" value={type} options={["Tous", "Pirogue", "Vedette", "Barge"]} onChange={setType} />
+            <FilterPill label="Statut" value={status} options={["Tous", "Conforme", "Anomalie mineure", "Anomalie majeure", "Critique"]} onChange={setStatus} />
+          </div>
+        </div>
+        <div className="card-body" style={{ paddingTop: 0, overflowX: "auto" }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Référence</th>
+                <th>Embarcation</th>
+                <th>Type</th>
+                <th>Zone</th>
+                <th>Date</th>
+                <th>Statut</th>
+                <th>Score</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((report) => (
+                <tr key={report.ref}>
+                  <td><strong>{report.ref}</strong></td>
+                  <td>{report.vessel}</td>
+                  <td>{report.type}</td>
+                  <td>{report.place}</td>
+                  <td>{report.date}</td>
+                  <td><span className={`badge ${report.status === "Conforme" ? "badge-success" : report.status === "Critique" ? "badge-danger" : report.status === "Anomalie majeure" ? "badge-warning" : "badge-info"}`}>{report.status}</span></td>
+                  <td>{report.score}</td>
+                  <td><div style={{ display: "flex", gap: 0.5 }}>
+                    <button className="icon-btn" title="Télécharger"><Download size={14} /></button>
+                    <button className="icon-btn" title="Voir"><Eye size={14} /></button>
+                  </div></td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--ng-text-muted)", padding: "2rem" }}>Aucun rapport trouvé</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </AppShell>
+  );
 }
-function Kpi({ icon, tone, title, value, detail, trend }: { icon: React.ReactNode; tone: string; title: string; value: string; detail: string; trend?: string }) { return <div className="report-kpi"><span className={`kpi-circle ${tone}`}>{icon}</span><div><small>{title}</small><strong>{value}{trend && <em>{trend}</em>}</strong><span>{detail}</span></div></div>; }
-function ReportPanelTitle({ icon, title, action }: { icon: React.ReactNode; title: string; action?: React.ReactNode }) { return <div className="report-panel-title"><div>{icon}<strong>{title}</strong></div>{action}</div>; }
-function Legend({ color, label, value, count }: { color: string; label: string; value: string; count: string }) { return <div><span><i style={{ background: color }} />{label}</span><strong>{value}</strong><small>{count}</small></div>; }
-function FilterField({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) { return <label className="filter-field"><span>{icon}{label}</span><div>{children}<ChevronDown size={14} /></div></label>; }
-function DetailLine({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) { return <div className="detail-line"><span>{icon}<small>{label}</small></span><strong>{value}</strong></div>; }
-function statusClass(status: Report["status"]) { return status === "Conforme" ? "conform" : status === "Critique" ? "critical" : status === "Anomalie majeure" ? "major" : "minor"; }
+
+function KpiCard({ icon: Icon, color, label, value, delta }: { icon: any; color: string; label: string; value: string; delta?: string }) {
+  return (
+    <div className="kpi-card">
+      <div className="kpi-icon" style={{ backgroundColor: color }}><Icon size={20} /></div>
+      <div className="kpi-content">
+        <span className="kpi-label">{label}</span>
+        <strong className="kpi-value">{value}</strong>
+        {delta && <span className="kpi-trend up">{delta}</span>}
+      </div>
+    </div>
+  );
+}
+
+function FilterPill({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (v: string) => void }) {
+  return (
+    <div className="filter-pill">
+      <button className="pill-trigger" onClick={() => {}}>{label}</button>
+      <select className="pill-select" value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
