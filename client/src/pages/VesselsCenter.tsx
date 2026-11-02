@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { Anchor, Check, ChevronDown, ChevronLeft, ChevronRight, Download, Edit3, Eye, Filter, MoreVertical, Pause, Plus, Printer, RefreshCw, Search, ShipWheel, Trash2, X } from "lucide-react";
+import { AlertTriangle, Anchor, ChevronLeft, Check, Download, Edit3, Filter, MapPin, Plus, Printer, RefreshCw, Search, ShipWheel, Trash2, UserRound } from "lucide-react";
 import { Link } from "wouter";
-import AppShell from "@/components/AppShell";
 import { toast } from "sonner";
+import AppShell from "@/components/AppShell";
 
 type Vessel = { id: number; name: string; registration: string; type: string; port: string; status: "Active" | "Inactive"; risk: "Faible" | "Moyen" | "Élevé"; lastInspection: string; score: number };
 const seed: Vessel[] = [
@@ -17,13 +17,144 @@ const seed: Vessel[] = [
 ];
 
 export default function VesselsCenter() {
-  const [vessels, setVessels] = useState(seed); const [selectedId, setSelectedId] = useState(1); const [query, setQuery] = useState(""); const [type, setType] = useState("Tous"); const [status, setStatus] = useState("Tous"); const [risk, setRisk] = useState("Tous"); const [port, setPort] = useState("Tous"); const [page, setPage] = useState(1); const [modal, setModal] = useState<"create" | "edit" | "delete" | null>(null); const selected = vessels.find((vessel) => vessel.id === selectedId) ?? vessels[0];
-  const filtered = useMemo(() => vessels.filter((vessel) => `${vessel.name} ${vessel.registration}`.toLowerCase().includes(query.toLowerCase()) && (type === "Tous" || vessel.type === type) && (status === "Tous" || vessel.status === status) && (risk === "Tous" || vessel.risk === risk) && (port === "Tous" || vessel.port === port)), [vessels, query, type, status, risk, port]);
+  const [vessels, setVessels] = useState(seed);
+  const [query, setQuery] = useState("");
+  const [type, setType] = useState("Tous");
+  const [status, setStatus] = useState("Tous");
+  const [risk, setRisk] = useState("Tous");
+  const [port, setPort] = useState("Tous");
+  const [page, setPage] = useState(1);
+const [modal, setModal] = useState<"create" | null>(null);
+
+  const filtered = useMemo(() => vessels.filter((vessel) =>
+    `${vessel.name} ${vessel.registration}`.toLowerCase().includes(query.toLowerCase()) &&
+    (type === "Tous" || vessel.type === type) &&
+    (status === "Tous" || vessel.status === status) &&
+    (risk === "Tous" || vessel.risk === risk) &&
+    (port === "Tous" || vessel.port === port)
+  ), [vessels, query, type, status, risk, port]);
+
   const reset = () => { setQuery(""); setType("Tous"); setStatus("Tous"); setRisk("Tous"); setPort("Tous"); toast.success("Filtres réinitialisés"); };
-  const exportData = () => { const csv = ["Nom,Immatriculation,Type,Port,Statut,Risque", ...filtered.map((v) => [v.name, v.registration, v.type, v.port, v.status, v.risk].join(","))].join("\n"); const blob = new Blob([csv], { type: "text/csv;charset=utf-8" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "navigarde-embarcations.csv"; link.click(); URL.revokeObjectURL(url); toast.success("Export CSV téléchargé"); };
-  return <AppShell><div className="vessels-page"><div className="vessels-head"><div><Link href="/" className="back-link"><ChevronLeft size={16} /> Retour</Link><h1>Gestion des embarcations</h1><p>Consultez, gérez et suivez toutes les embarcations enregistrées dans le système.</p></div></div><div className="vessels-layout"><main><div className="vessel-kpis"><Kpi icon={<ShipWheel />} tone="blue" title="Total Embarcations" value="245" trend="↑ +5%" /><Kpi icon={<Check />} tone="green" title="Actives" value="212" trend="↑ +3%" /><Kpi icon={<Pause />} tone="orange" title="Inactives" value="21" trend="↑ +1%" /><Kpi icon={<Anchor />} tone="red" title="À risque" value="12" trend="↓ -1%" /></div><div className="vessel-toolbar"><button className="primary-button" onClick={() => setModal("create")}><Plus size={17} /> Ajouter une embarcation</button><div><button className="secondary-button" onClick={exportData}><Download size={16} /> Exporter</button><button className="secondary-button" onClick={() => { window.print(); toast.success("Impression préparée"); }}><Printer size={16} /> Imprimer</button></div></div><section className="panel vessels-table-panel"><div className="table-scroll"><table className="vessels-table"><thead><tr><th><input type="checkbox" aria-label="Sélectionner tout" /></th><th>N°</th><th>Photo</th><th>Nom</th><th>Immatriculation</th><th>Type</th><th>Port d’attache</th><th>Statut</th><th>Risque</th><th>Actions</th></tr></thead><tbody>{filtered.map((vessel, index) => <tr key={vessel.id} onClick={() => setSelectedId(vessel.id)} className={selectedId === vessel.id ? "selected-vessel" : ""}><td><input type="checkbox" aria-label={`Sélectionner ${vessel.name}`} onClick={(event) => event.stopPropagation()} /></td><td>{index + 1}</td><td><img className="vessel-thumb" src="/boat-inspection.jpg" alt={vessel.name} /></td><td><strong>{vessel.name}</strong></td><td>{vessel.registration}</td><td><span className={`vessel-type ${vessel.type.toLowerCase()}`}>{vessel.type}</span></td><td>{vessel.port}</td><td><span className={`vessel-status ${vessel.status.toLowerCase()}`}><i />{vessel.status}</span></td><td><span className={`vessel-risk ${vessel.risk.toLowerCase().replace("é", "e")}`}>{vessel.risk}</span></td><td><div className="row-actions"><button className="icon-action" title="Voir le détail" onClick={(event) => { event.stopPropagation(); setSelectedId(vessel.id); }}><Eye size={15} /></button><button className="icon-action" title="Modifier" onClick={(event) => { event.stopPropagation(); setSelectedId(vessel.id); setModal("edit"); }}><Edit3 size={15} /></button><button className="icon-action" title="Options" onClick={(event) => { event.stopPropagation(); toast.info(`Options de ${vessel.name}`); }}><MoreVertical size={15} /></button></div></td></tr>)}</tbody></table></div><div className="vessels-pagination"><span>Affichage de 1 à {filtered.length} sur 245 embarcations</span><div><button><ChevronLeft size={14} /></button><button className="current">{page}</button><button onClick={() => setPage((p) => p + 1)}>{page + 1}</button><button>3</button><button>…</button><button>31</button><button><ChevronRight size={14} /></button></div></div></section></main><aside className="vessels-side"><section className="panel vessel-filters"><div className="filter-head"><strong><Filter size={17} /> Filtres de recherche</strong><button onClick={reset}><RefreshCw size={13} /> Réinitialiser</button></div><label className="filter-field"><span>Nom ou immatriculation</span><div className="search-filter"><input placeholder="Ex: BK-0421..." value={query} onChange={(event) => setQuery(event.target.value)} /><Search size={15} /></div></label><Select label="Type d’embarcation" value={type} onChange={setType} options={["Tous", "Pirogue", "Vedette", "Barge", "Coque"]} /><Select label="Statut" value={status} onChange={setStatus} options={["Tous", "Active", "Inactive"]} /><Select label="Niveau de risque" value={risk} onChange={setRisk} options={["Tous", "Faible", "Moyen", "Élevé"]} /><Select label="Port d’attache" value={port} onChange={setPort} options={["Tous", "Porto-Novo", "Cotonou", "Sèmè-Kpodji", "Ouidah", "Grand-Popo", "Abomey-Calavi"]} /><button className="primary-button apply-filter" onClick={() => toast.success(`${filtered.length} embarcations trouvées`)}><Search size={16} /> Rechercher</button></section><section className="panel selected-vessel-card"><div className="selected-vessel-head"><strong>{selected.name}</strong><span className="vessel-status active"><i />Active</span></div><img src="/boat-inspection.jpg" alt={selected.name} /><div className="selected-vessel-meta"><strong>{selected.registration} · {selected.type}</strong><p><Anchor size={15} /> {selected.port}</p><p><Check size={15} /> Dernière inspection : {selected.lastInspection}</p><p><ShieldIcon /> Score conformité : {selected.score}%</p></div><Link className="view-vessel-button" href={`/embarcations/${selected.registration}`}><Eye size={15} /> Voir le détail <ChevronRight size={15} /></Link></section></aside></div>{modal && <VesselModal mode={modal} vessel={selected} onClose={() => setModal(null)} onSave={(data) => { if (modal === "create") { const newVessel = { ...data, id: Date.now(), lastInspection: "Jamais", score: 0 }; setVessels((items) => [newVessel, ...items]); setSelectedId(newVessel.id); toast.success("Embarcation ajoutée"); } else { setVessels((items) => items.map((item) => item.id === selected.id ? { ...item, ...data } : item)); toast.success("Embarcation mise à jour"); } setModal(null); }} onDelete={() => { setVessels((items) => items.filter((item) => item.id !== selected.id)); setModal(null); toast.success("Embarcation supprimée"); }} />}</div></AppShell>;
+
+  return (
+    <AppShell>
+      <div className="page-header">
+        <div>
+          <Link href="/" className="back-link"><ChevronLeft size={16} /> Retour</Link>
+          <h1 className="page-title">Gestion des embarcations</h1>
+          <p className="page-subtitle">Consultez, gérez et suivez toutes les embarcations enregistrées dans le système.</p>
+        </div>
+      </div>
+
+      <section className="kpi-row">
+        <KpiCard icon={<ShipWheel size={20} />} color="#2563eb" label="Total embarcations" value="245" delta="+5%" />
+        <KpiCard icon={<Check size={20} />} color="#0ca7b0" label="Actives" value="212" delta="+3%" />
+        <KpiCard icon={<RefreshCw size={20} />} color="#f59e0b" label="Inactives" value="21" delta="+1%" />
+        <KpiCard icon={<AlertTriangle size={20} />} color="#ef4444" label="À risque" value="12" delta="-1%" />
+      </section>
+
+      <div className="card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, marginBottom: 1 }}>
+          <Toolbar placeholder="Rechercher immatriculation, propriétaire, zone…" onChange={setQuery} />
+          <div className="filter-row">
+            <FilterPill label="Type" value={type} options={["Tous", "Pirogue", "Vedette", "Barge", "Coque"]} onChange={setType} />
+            <FilterPill label="Statut" value={status} options={["Tous", "Active", "Inactive"]} onChange={setStatus} />
+            <FilterPill label="Risque" value={risk} options={["Tous", "Faible", "Moyen", "Élevé"]} onChange={setRisk} />
+          </div>
+          <div className="filter-actions">
+            <button className="btn btn-secondary" onClick={reset}>Réinitialiser</button>
+            <button className="btn btn-primary" onClick={() => setModal("create")}><Plus size={17} /> Nouvelle embarcation</button>
+          </div>
+        </div>
+        <Toolbar placeholder="Rechercher immatriculation, propriétaire, zone…" onChange={setQuery} />
+        <div className="card-body" style={{ paddingTop: 0, overflowX: "auto" }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>N°</th>
+                <th>Photo</th>
+                <th>Nom</th>
+                <th>Immatriculation</th>
+                <th>Type</th>
+                <th>Port d'attache</th>
+                <th>Statut</th>
+                <th>Score risque</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((vessel, index) => (
+                <tr key={vessel.id}>
+                  <td>{index + 1}</td>
+                  <td><img className="vessel-thumb" src="/boat-inspection.jpg" alt={vessel.name} /></td>
+                  <td><strong>{vessel.name}</strong></td>
+                  <td>{vessel.registration}</td>
+                  <td><span className={`badge ${vessel.type === "Pirogue" ? "badge-info" : vessel.type === "Vedette" ? "badge-warning" : "badge-neutral"}`}>{vessel.type}</span></td>
+                  <td>{vessel.port}</td>
+                  <td><span className={`badge ${vessel.status === "Active" ? "badge-success" : "badge-danger"}`}>{vessel.status}</span></td>
+                  <td>{vessel.score}</td>
+                  <td><div style={{ display: "flex", gap: 0.5 }}>
+                    <button className="icon-btn" title="Détails"><MapPin size={14} /></button>
+                    <button className="icon-btn" title="Éditer"><Edit3 size={14} /></button>
+                  </div></td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--ng-text-muted)", padding: "2rem" }}>Aucune embarcation trouvée</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </AppShell>
+  );
 }
-function Kpi({ icon, tone, title, value, trend }: { icon: React.ReactNode; tone: string; title: string; value: string; trend: string }) { return <div className="vessel-kpi"><span className={`vessel-kpi-icon ${tone}`}>{icon}</span><div><small>{title}</small><strong>{value}</strong><em className={tone === "red" ? "negative" : ""}>{trend}</em></div></div>; }
-function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: string[] }) { return <label className="filter-field"><span>{label}</span><div><select value={value} onChange={(event) => onChange(event.target.value)}>{options.map((option) => <option key={option}>{option}</option>)}</select><ChevronDown size={14} /></div></label>; }
-function ShieldIcon() { return <span className="shield-inline">◆</span>; }
-function VesselModal({ mode, vessel, onClose, onSave, onDelete }: { mode: "create" | "edit" | "delete"; vessel: Vessel; onClose: () => void; onSave: (data: Omit<Vessel, "id" | "lastInspection" | "score">) => void; onDelete: () => void }) { const [name, setName] = useState(mode === "create" ? "" : vessel.name); const [registration, setRegistration] = useState(mode === "create" ? "N°" : vessel.registration); const [type, setType] = useState(mode === "create" ? "Pirogue" : vessel.type); const [port, setPort] = useState(mode === "create" ? "Cotonou" : vessel.port); const [status, setStatus] = useState<Vessel["status"]>(mode === "create" ? "Active" : vessel.status); if (mode === "delete") return <div className="modal-backdrop" onClick={onClose}><div className="modal-card" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose}><X size={18} /></button><span className="eyebrow">Suppression</span><h2>Supprimer cette embarcation ?</h2><p>Cette action supprimera <strong>{vessel.name}</strong> de la liste de démonstration.</p><div className="modal-actions"><button className="secondary-button" onClick={onClose}>Annuler</button><button className="primary-button danger-button" onClick={onDelete}><Trash2 size={16} /> Supprimer</button></div></div></div>; return <div className="modal-backdrop" onClick={onClose}><div className="modal-card" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose}><X size={18} /></button><span className="eyebrow">{mode === "create" ? "Nouvelle embarcation" : "Modifier l’embarcation"}</span><h2>{mode === "create" ? "Ajouter une embarcation" : vessel.name}</h2><label className="field"><span>Nom</span><input value={name} onChange={(event) => setName(event.target.value)} /></label><label className="field"><span>Immatriculation</span><input value={registration} onChange={(event) => setRegistration(event.target.value)} /></label><label className="field"><span>Type</span><select value={type} onChange={(event) => setType(event.target.value)}><option>Pirogue</option><option>Vedette</option><option>Barge</option><option>Coque</option></select></label><label className="field"><span>Port d’attache</span><input value={port} onChange={(event) => setPort(event.target.value)} /></label><label className="field"><span>Statut</span><select value={status} onChange={(event) => setStatus(event.target.value as Vessel["status"])}><option>Active</option><option>Inactive</option></select></label><div className="modal-actions"><button className="secondary-button" onClick={onClose}>Annuler</button><button className="primary-button" onClick={() => onSave({ name, registration, type, port, status, risk: vessel.risk })}><Check size={16} /> Enregistrer</button></div></div></div>; }
+
+function KpiCard({ icon: Icon, color, label, value, delta }: { icon: any; color: string; label: string; value: string; delta?: string }) {
+  return (
+    <div className="kpi-card">
+      <div className="kpi-icon" style={{ backgroundColor: color }}><Icon size={20} /></div>
+      <div className="kpi-content">
+        <span className="kpi-label">{label}</span>
+        <strong className="kpi-value">{value}</strong>
+        {delta && <span className="kpi-trend up">{delta}</span>}
+      </div>
+    </div>
+  );
+}
+
+function FilterPill({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (v: string) => void }) {
+  return (
+    <div className="filter-pill">
+      <button className="pill-trigger" onClick={() => {}}>{label}</button>
+      <select className="pill-select" value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function FilterPillSelect({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (v: string) => void }) {
+  return (
+    <div className="filter-pill">
+      <select className="pill-select" value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function VesselThumbnail({ src, alt }: { src: string; alt: string }) {
+  return <img className="vessel-thumb" src={src} alt={alt} />;
+}
+
+function Toolbar({ placeholder = "Rechercher...", onChange }: { placeholder?: string; onChange?: (value: string) => void }) {
+  return (
+    <div className="table-search" style={{ width: 320, position: "relative" }}>
+      <Search size={16} style={{ position: "absolute", left: "1rem", top: "50%", transform: "translateY(-50%)", color: "var(--ng-text-muted)" }} />
+      <input placeholder={placeholder} onChange={(event) => onChange?.(event.target.value)} className="input" style={{ paddingLeft: "2.5rem" }} />
+    </div>
+  );
+}
+
+
