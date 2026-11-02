@@ -1,30 +1,9 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { alerts, vessels } from "../drizzle/schema";
-import { addAlertHistory, addAuditEvent, addInspectionImage, addReportVersion, createAlert, createInspection, createMaritimeBulletin, createNotification, createReport, createVessel, dashboardMetrics, deleteAlert, deleteVessel, getAppSettings, getInspection, getReport, listAlertHistory, listAlerts, listAuditEvents, listInspectionFindings, listInspectionHistory, listInspectionImages, listInspections, listMaritimeBulletins, listNotifications, listReportVersions, listReports, listVessels, makeInspectionPdf, markAllNotificationsRead, markNotificationRead, replaceInspectionFindings, sha256, transitionInspection, updateAlert, updateAlertWithHistory, updateInspection, updateInspectionFinding, updateMaritimeBulletin, updateReport, updateVessel, upsertAppSetting } from "./db";
+import { addAuditEvent, addInspectionImage, addReportVersion, createAlert, createInspection, createMaritimeBulletin, createNotification, createReport, createVessel, dashboardMetrics, deleteAlert, deleteVessel, getAppSettings, getInspection, getReport, listAlertHistory, listAlerts, listAuditEvents, listInspectionFindings, listInspectionHistory, listInspectionImages, listInspections, listMaritimeBulletins, listNotifications, listReportVersions, listReports, listVessels, makeInspectionPdf, markAllNotificationsRead, markNotificationRead, replaceInspectionFindings, sha256, transitionInspection, updateAlertWithHistory, updateInspection, updateInspectionFinding, updateMaritimeBulletin, updateReport, updateVessel, upsertAppSetting } from "./db";
 import { storagePut } from "./storage";
-import { protectedProcedure, router } from "./_core/trpc";
+import { protectedProcedure, router, supervisorProcedure, adminAppProcedure as adminProcedure, operationalProcedure } from "./_core/trpc";
 
-const supervisorProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (!ctx.user || !["admin", "supervisor"].includes(ctx.user.appRole)) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Permission superviseur requise." });
-  }
-  return next();
-});
-
-const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (!ctx.user || ctx.user.appRole !== "admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Permission administrateur requise." });
-  }
-  return next();
-});
-
-const operationalProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (!ctx.user || ctx.user.appRole === "observer") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Le rôle Observateur est limité à la consultation." });
-  }
-  return next();
-});
 
 const vesselInput = z.object({
   registrationNumber: z.string().min(2).max(64), name: z.string().max(160).optional(), type: z.string().min(2).max(80), ownerName: z.string().min(2).max(160), ownerPhone: z.string().max(40).optional(), capacity: z.number().int().nonnegative(), lengthMeters: z.string().optional(), widthMeters: z.string().optional(), draftMeters: z.string().optional(), enginePower: z.number().int().nonnegative().optional(), fuelType: z.string().max(40).optional(), place: z.string().min(2).max(120), latitude: z.string().optional(), longitude: z.string().optional(), status: z.enum(["conforme", "sous_surveillance", "immobilisee", "non_enregistree"]).default("conforme"), riskScore: z.number().int().min(0).max(100).default(0),
@@ -44,7 +23,10 @@ export const dataRouter = router({
   }),
   inspections: router({
     list: protectedProcedure.query(() => listInspections()),
-    get: protectedProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input }) => ({ inspection: await getInspection(input.id), images: await listInspectionImages(input.id), findings: await listInspectionFindings(input.id), history: await listInspectionHistory(input.id) })),
+    get: protectedProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input }) => {
+      const [inspection, images, findings, history] = await Promise.all([getInspection(input.id), listInspectionImages(input.id), listInspectionFindings(input.id), listInspectionHistory(input.id)]);
+      return { inspection, images, findings, history };
+    }),
     create: operationalProcedure.input(z.object({ vesselId: z.number().int().positive(), place: z.string().min(2).max(120), inspectionDate: z.coerce.date(), comments: z.string().max(10000).optional(), passengersDetected: z.number().int().nonnegative().default(0), lifejacketsVisible: z.number().int().nonnegative().default(0) })).mutation(({ input, ctx }) => createInspection({ ...input, agentId: ctx.user.id, status: "en_cours" })),
     update: protectedProcedure.input(z.object({ id: z.number().int().positive(), patch: z.object({ place: z.string().min(2).max(120).optional(), inspectionDate: z.coerce.date().optional(), comments: z.string().max(10000).optional(), status: z.enum(["brouillon", "en_cours", "en_analyse", "a_verifier", "validee", "rejetee", "cloturee", "terminee"]).optional() }) })).mutation(async ({ input, ctx }) => { const inspection = await getInspection(input.id); if (!inspection || (inspection.agentId !== ctx.user.id && !["admin", "supervisor"].includes(ctx.user.appRole))) throw new TRPCError({ code: "FORBIDDEN", message: "Cette inspection ne vous appartient pas." }); if (input.patch.status) return transitionInspection(input.id, { status: input.patch.status, userId: ctx.user.id, metadata: input.patch }); return updateInspection(input.id, input.patch); }),
     review: supervisorProcedure.input(z.object({ inspectionId: z.number().int().positive(), findingId: z.number().int().positive(), status: z.enum(["confirmee", "corrigee", "ignoree", "a_verifier"]), note: z.string().max(4000).optional() })).mutation(async ({ input, ctx }) => { await updateInspectionFinding(input.findingId, input.inspectionId, { humanStatus: input.status, humanNote: input.note, confirmedBy: ctx.user.id }); if (input.status === "confirmee") { const inspection = await getInspection(input.inspectionId); const alert = await createAlert({ createdBy: ctx.user.id, vesselId: inspection?.vesselId, title: "Anomalie confirmée après inspection", description: input.note ?? "Une anomalie détectée par l’IA a été confirmée par un superviseur.", place: inspection?.place ?? "Non renseigné", urgency: "urgent", source: "ia" }); await createNotification({ userId: ctx.user.id, type: "inspection_review", title: "Alerte créée automatiquement", message: "Une anomalie confirmée a généré une alerte urgente.", href: `/alertes` }); return { success: true, alertId: alert.id }; } return { success: true }; }),

@@ -8,6 +8,8 @@
     "noEmit": true,
     "module": "ESNext",
     "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "lib": ["esnext", "dom", "dom.iterable"],
     "jsx": "preserve",
     "esModuleInterop": true,

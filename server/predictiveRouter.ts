@@ -1,16 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createAlert, createMaritimeZone, createWeatherBulletin, listAlerts, listMaritimeZones, listVessels, listWeatherBulletins, saveVesselPosition } from "./db";
-import { protectedProcedure, router } from "./_core/trpc";
-
-const supervisorProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (!ctx.user || !["admin", "supervisor"].includes(ctx.user.appRole)) throw new TRPCError({ code: "FORBIDDEN", message: "Permission superviseur requise." });
-  return next();
-});
-const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (!ctx.user || ctx.user.appRole !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Permission administrateur requise." });
-  return next();
-});
+import { protectedProcedure, router, supervisorProcedure, adminAppProcedure as adminProcedure } from "./_core/trpc";
 
 function pointInPolygon(point: [number, number], polygon: Array<[number, number]>) {
   let inside = false;
