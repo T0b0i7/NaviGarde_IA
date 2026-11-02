@@ -28,7 +28,7 @@ async function main() {
     loginMethod: "local",
     role: "admin",
     appRole: "admin",
-    passwordHash: "$2b$10$a8dumUlEdCmtRx6LT13XvecjU4d1IVQmQQu/aAfSETWF7wXqsCEHG",
+    passwordHash: "scrypt$3895bdb07cfe64cbf703f9ad2b1a968d$1d12fcb06aecdf796b872fea73041d152cd0bf02e64cdd2a6d588868642e7640f5fd3b31cdf4a9d8aa5ce30706587a1c168b8cdf9150567ea3efcc7a932001a3",
     isActive: 1,
   });
   const u2 = await ins(schema.users, {
@@ -38,7 +38,7 @@ async function main() {
     loginMethod: "local",
     role: "user",
     appRole: "supervisor",
-    passwordHash: "$2b$10$a8dumUlEdCmtRx6LT13XvecjU4d1IVQmQQu/aAfSETWF7wXqsCEHG",
+    passwordHash: "scrypt$3895bdb07cfe64cbf703f9ad2b1a968d$1d12fcb06aecdf796b872fea73041d152cd0bf02e64cdd2a6d588868642e7640f5fd3b31cdf4a9d8aa5ce30706587a1c168b8cdf9150567ea3efcc7a932001a3",
     isActive: 1,
   });
   const u3 = await ins(schema.users, {
@@ -48,7 +48,7 @@ async function main() {
     loginMethod: "local",
     role: "user",
     appRole: "agent",
-    passwordHash: "$2b$10$a8dumUlEdCmtRx6LT13XvecjU4d1IVQmQQu/aAfSETWF7wXqsCEHG",
+    passwordHash: "scrypt$3895bdb07cfe64cbf703f9ad2b1a968d$1d12fcb06aecdf796b872fea73041d152cd0bf02e64cdd2a6d588868642e7640f5fd3b31cdf4a9d8aa5ce30706587a1c168b8cdf9150567ea3efcc7a932001a3",
     isActive: 1,
   });
 
