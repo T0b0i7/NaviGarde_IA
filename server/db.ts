@@ -2,8 +2,6 @@ import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
 import { alertHistory, alerts, appSettings, authSessions, auditEvents, InsertUser, inspectionFindings, inspectionHistory, inspectionImages, inspections, maritimeBulletins, maritimeZones, notifications, passwordResetTokens, reportVersions, reports, users, vessels, vesselPositions, weatherBulletins } from "../drizzle/schema";
-import { ENV } from './_core/env';
-
 let _db: ReturnType<typeof drizzle> | null = null;
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
@@ -59,11 +57,6 @@ export async function upsertUser(user: InsertUser): Promise<void> {
         values.appRole = "admin";
         updateSet.appRole = "admin";
       }
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
-      values.appRole = "admin";
-      updateSet.appRole = "admin";
     }
 
     if (!values.lastSignedIn) {
