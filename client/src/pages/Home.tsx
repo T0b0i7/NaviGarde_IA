@@ -1,19 +1,251 @@
-import { ReactNode, useMemo, useState } from "react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, RadarChart as RadarChartType, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowDownRight, ArrowUpRight, Bell, BrainCircuit, CalendarDays, Camera, ChevronDown, ChevronRight, ChevronUp, Clock3, FileText, MapPin, Maximize2, Minimize2, Search, ShipWheel, Sparkles, TriangleAlert, Waves, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Area, AreaChart, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ArrowDownRight, ArrowUpRight, Bell, BrainCircuit, CalendarDays, ChevronRight, Clock3, FileText, MapPin, Maximize2, Minimize2, Search, ShipWheel, Sparkles, TriangleAlert } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import AppShell from "@/components/AppShell";
 import { trpc } from "@/lib/trpc";
 
+type Insight = { headline: string; summary: string; signals: string[]; actions: string[]; confidence: number };
 
-type Insight = { headline: string; summary: string; severity: string; signals: string[]; actions: string[]; confidence: number };
-function Kpi({ icon: Icon, color, label, value, delta, down, yesterday }: { icon: typeof Camera; color: string; label: string; value: string; delta: string; down?: boolean; yesterday: string }) { return <div className="kpi-card kpi-enhanced"><div className="kpi-icon" style={{ background: color }}><Icon size={22} /></div><div className="kpi-copy"><span>{label}</span><strong>{value}</strong><div className={down ? "delta down" : "delta"}>{down ? <ArrowDownRight size={16} /> : <ArrowUpRight size={16} />}{delta}</div><small>Hier : {yesterday}</small></div><ChevronRight className="kpi-arrow" size={18} /></div> }
-function ChartPanel({ title, sub, children, onAnalyze, wide = false }: { title: string; sub: string; children: ReactNode; onAnalyze: () => void; wide?: boolean }) { const [collapsed, setCollapsed] = useState(false); const [expanded, setExpanded] = useState(false); const chart = <div className={`panel chart-panel ${wide ? "analytics-wide" : "analytics-card"} ${collapsed ? "chart-collapsed" : ""}`}><div className="chart-panel-head"><div><h2>{title}</h2><small>{sub}</small></div><div className="chart-tools"><button title="Analyser avec NaviGarde IA" onClick={onAnalyze}><BrainCircuit size={15} /></button><button title={collapsed ? "Développer" : "Réduire"} onClick={() => setCollapsed((value) => !value)}>{collapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}</button><button title="Agrandir" onClick={() => setExpanded(true)}><Maximize2 size={14} /></button></div></div>{!collapsed && <div className="chart-panel-body">{children}</div>}</div>; return <>{chart}{expanded && <div className="chart-expanded-backdrop" onClick={() => setExpanded(false)}><div className="chart-expanded-card" onClick={(event) => event.stopPropagation()}><div className="chart-panel-head"><div><h2>{title}</h2><small>{sub}</small></div><button className="chart-close" onClick={() => setExpanded(false)}><Minimize2 size={16} /></button></div><div className="chart-expanded-body">{children}</div></div></div>}</> }
-function PanelHead({ title, sub, action }: { title: string; sub?: string; action?: ReactNode }) { return <div className="panel-heading"><div><h2>{title}</h2>{sub && <small className="panel-subtitle">{sub}</small>}</div>{action}</div> }
+function Kpi({ icon: Icon, color, label, value, delta, down, yesterday }: { icon: any; color: string; label: string; value: string; delta: string; down?: boolean; yesterday: string }) {
+  return (
+    <div className="kpi-card">
+      <div className="kpi-icon" style={{ backgroundColor: color }}><Icon size={20} /></div>
+      <div className="kpi-content">
+        <span className="kpi-label">{label}</span>
+        <strong className="kpi-value">{value}</strong>
+        <div className={`kpi-trend ${down ? "down" : "up"}`}>
+          {down ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />} {delta}
+        </div>
+        <small>{yesterday}</small>
+      </div>
+      <ChevronRight className="kpi-arrow" size={16} />
+    </div>
+  );
+}
 
 export default function Home() {
-  const [query, setQuery] = useState(""); const [period, setPeriod] = useState<"24 heures" | "7 jours" | "30 jours">("7 jours"); const [focus, setFocus] = useState<string | null>(null); const [insight, setInsight] = useState<Insight | null>(null); const analysis = trpc.ai.analyzeDashboard.useMutation(); const dashboardQuery = trpc.data.dashboard.metrics.useQuery({ period }, { refetchInterval: 30000 }); const metrics = dashboardQuery.data?.totals; const activity = dashboardQuery.data?.activity ?? []; const risks = dashboardQuery.data?.risks ?? []; const problems: Array<{ name: string; count: number }> = []; const agentPerformance: Array<{ subject: string; A: number; fullMark: number }> = []; const delays: Array<{ day: string; minutes: number }> = []; const inspections = dashboardQuery.data?.recentInspections?.map((item) => ({ date: new Date(item.inspectionDate).toLocaleString("fr-FR"), boat: `Embarcation #${item.vesselId}`, type: "Inspection", place: item.place, risk: item.riskScore >= 75 ? "Critique" : item.riskScore >= 50 ? "Élevé" : item.riskScore >= 25 ? "Moyen" : "Faible", riskClass: item.riskScore >= 75 ? "critical" : item.riskScore >= 50 ? "high" : item.riskScore >= 25 ? "medium" : "low", status: item.status === "terminee" ? "Clôturée" : item.status === "rejetee" ? "Rejetée" : "En cours", statusClass: item.status === "terminee" ? "closed" : "progress", agent: item.agentId ? `Agent #${item.agentId}` : "Non affecté" })) ?? []; const alerts = dashboardQuery.data?.recentAlerts?.map((item) => ({ label: item.title, boat: item.vesselId ? `Embarcation #${item.vesselId}` : "Signal terrain", meta: `${new Date(item.createdAt).toLocaleString("fr-FR")} · ${item.place}`, tone: item.urgency === "detresse" ? "critical" : "warning" })) ?? []; const filtered = useMemo(() => inspections.filter((item) => `${item.boat} ${item.place} ${item.agent}`.toLowerCase().includes(query.toLowerCase())), [query, inspections]);
-  const analyze = async (graph: string) => { toast.info(`Analyse IA lancée · ${graph}`, { description: "NaviGarde croise les signaux du graphique avec les risques terrain." }); try { const result = await analysis.mutateAsync({ period, activity, risks, problems, delays, teamScore: 86 }); setInsight(result); toast.success("Analyse opérationnelle disponible", { description: "Les signaux et actions prioritaires sont prêts." }); } catch (error) { toast.error(error instanceof Error ? error.message : "Analyse IA indisponible"); } };
-  return <AppShell><section className="dashboard-head"><div><span className="eyebrow">Centre de commandement · temps réel</span><h1>Bonjour, Thomas ADJÉ.</h1><p>Une vue claire des risques, des équipes et des décisions à prendre aujourd’hui.</p></div><div className="dashboard-controls"><label><CalendarDays size={15} /><select value={period} onChange={(event) => { setPeriod(event.target.value as "24 heures" | "7 jours" | "30 jours"); toast.success(`Période changée : ${event.target.value}`); }}><option>24 heures</option><option>7 jours</option><option>30 jours</option></select></label><span><MapPin size={16} /> Littoral · Bénin</span></div></section><section className="kpi-grid"><Kpi icon={Camera} color="#16a9df" label="Inspections totales" value={String(metrics?.inspections ?? 0)} delta={`${metrics?.inspectionsToday ?? 0} aujourd’hui`} yesterday="—" /><Kpi icon={Camera} color="#16aeb4" label="Inspections du jour" value={String(metrics?.inspectionsToday ?? 0)} delta="actualisées" yesterday="—" /><Kpi icon={Bell} color="#f04450" label="Alertes ouvertes" value={String(metrics?.openAlerts ?? 0)} delta="ouvertes" yesterday="—" /><Kpi icon={FileText} color="#f4b91d" label="Rapports en attente" value={String(metrics?.pendingReports ?? 0)} delta="à traiter" down yesterday="—" /><Kpi icon={ShipWheel} color="#7656df" label="Embarcations suivies" value={String(metrics?.vessels ?? 0)} delta="suivies" yesterday="—" /></section><section className="command-strip"><div><span className={`live-dot ${dashboardQuery.error ? "offline" : ""}`} /> {dashboardQuery.isLoading ? "Synchronisation des données…" : dashboardQuery.error ? "Données indisponibles · vérifiez la connexion MySQL" : "Flux opérationnel actif"}<span className="command-muted">{dashboardQuery.data ? "Dernière synchronisation automatique" : "Aucune donnée métier chargée"}</span></div><div className="command-actions"><Link href="/inspections/new" className="primary-button small"><Camera size={15} /> Nouvelle inspection</Link><Link href="/alertes" className="secondary-button small"><Bell size={15} /> Traiter les alertes</Link></div></section><section className="dashboard-grid professional-grid"><ChartPanel title="Activité des inspections" sub={`Confirmées, en cours et rejetées · ${period}`} onAnalyze={() => analyze("Activité des inspections")} wide><div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><AreaChart data={activity} margin={{ top: 10, right: 10, left: -18, bottom: 0 }}><defs><linearGradient id="blueFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#1684cd" stopOpacity={.18}/><stop offset="100%" stopColor="#1684cd" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#e5edf3" vertical={false} /><XAxis dataKey="day" tick={{ fontSize: 11, fill: "#6f8397" }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 11, fill: "#6f8397" }} axisLine={false} tickLine={false} /><Tooltip /><Area type="monotone" dataKey="confirmed" stroke="#1684cd" strokeWidth={2.5} fill="url(#blueFill)" /><Area type="monotone" dataKey="progress" stroke="#16aeb4" strokeWidth={2} fill="none" /><Area type="monotone" dataKey="rejected" stroke="#f28a1e" strokeWidth={2} fill="none" /></AreaChart></ResponsiveContainer></div></ChartPanel><ChartPanel title="Répartition des risques" sub="Sur les 42 dernières inspections" onAnalyze={() => analyze("Répartition des risques")}><div className="risk-content"><div className="donut"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={risks} innerRadius={54} outerRadius={82} dataKey="value" paddingAngle={1} stroke="#fff" strokeWidth={2}>{risks.map((risk) => <Cell key={risk.name} fill={risk.color} />)}</Pie></PieChart></ResponsiveContainer><div className="donut-center"><strong>42</strong><span>inspections</span></div></div><div className="risk-list">{risks.map((risk) => <div key={risk.name}><span><i style={{ background: risk.color }} />{risk.name}</span><b>{risk.value}%</b></div>)}</div></div></ChartPanel><div className="panel alerts-panel"><PanelHead title="Alertes urgentes" action={<Link href="/alertes" className="text-link">Voir tout <ChevronRight size={14} /></Link>} /><div className="alerts-list">{alerts.map((alert) => <button className="alert-row alert-row-button" key={alert.label} onClick={() => { setFocus(alert.label); toast.info("Fiche alerte ouverte", { description: alert.boat }); }}><div className={`alert-symbol ${alert.tone}`}><TriangleAlert size={18} /></div><div><strong>{alert.label} – {alert.boat}</strong><small>{alert.meta}</small></div><ChevronRight size={17} /></button>)}</div></div><ChartPanel title="Problèmes détectés par l’IA" sub="Top des constats sur la période sélectionnée" onAnalyze={() => analyze("Problèmes détectés par l’IA")} wide><div className="bar-chart-wrap"><ResponsiveContainer width="100%" height="100%"><BarChart data={problems} layout="vertical" margin={{ left: 0, right: 20 }}><CartesianGrid stroke="#edf2f5" horizontal={false} /><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={72} tick={{ fontSize: 11, fill: "#607a8f" }} axisLine={false} tickLine={false} /><Tooltip /><Bar dataKey="count" fill="#0fa4c2" radius={[0, 5, 5, 0]} barSize={18} /></BarChart></ResponsiveContainer></div></ChartPanel><ChartPanel title="Performance équipe" sub="Score moyen des agents" onAnalyze={() => analyze("Performance équipe")}><div className="radar-wrap"><ResponsiveContainer width="100%" height="100%"><RadarChart data={agentPerformance}><PolarGrid stroke="#dce9ef" /><PolarAngleAxis dataKey="subject" tick={{ fontSize: 9, fill: "#71879a" }} /><PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} /><Radar dataKey="A" stroke="#1684cd" fill="#1684cd" fillOpacity={.25} /></RadarChart></ResponsiveContainer></div><div className="analytics-score"><strong>86<span>/100</span></strong><small>+8% vs mois dernier</small></div></ChartPanel><ChartPanel title="Délai de prise en charge" sub="Minutes · moyenne quotidienne" onAnalyze={() => analyze("Délai de prise en charge")}><div className="line-chart-wrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={delays} margin={{ top: 8, right: 12, left: -25, bottom: 0 }}><CartesianGrid stroke="#edf2f5" vertical={false} /><XAxis dataKey="day" tick={{ fontSize: 9, fill: "#8194a3" }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 9, fill: "#8194a3" }} axisLine={false} tickLine={false} /><Tooltip /><Line type="monotone" dataKey="minutes" stroke="#f28a1e" strokeWidth={3} dot={{ r: 3, fill: "#f28a1e" }} /></LineChart></ResponsiveContainer></div><div className="analytics-score"><strong>16<span> min</span></strong><small className="positive">-42% depuis lundi</small></div></ChartPanel><div className="panel recent-panel"><PanelHead title="Inspections récentes" action={<Link href="/inspections/new" className="text-link">Nouvelle <ChevronRight size={14} /></Link>} /><div className="table-tools"><div className="table-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filtrer les inspections" /></div></div><div className="table-scroll"><table><thead><tr><th>Date / Heure</th><th>Embarcation</th><th>Type</th><th>Lieu</th><th>Risque</th><th>Statut</th><th>Agent</th><th /></tr></thead><tbody>{filtered.map((item) => <tr key={item.boat}><td>{item.date}</td><td><strong>{item.boat}</strong></td><td>{item.type}</td><td>{item.place}</td><td><span className={`tag risk-${item.riskClass}`}>{item.risk}</span></td><td><span className={`tag status-${item.statusClass}`}>{item.status}</span></td><td>{item.agent}</td><td><button className="icon-action" onClick={() => setFocus(item.boat)}><ChevronRight size={16} /></button></td></tr>)}</tbody></table></div></div><div className="panel quick-panel"><PanelHead title="Accès rapide" /><div className="quick-actions"><Link href="/inspections/new" className="quick-button cyan"><Camera size={20} />Nouvelle inspection<ChevronRight size={18} /></Link><Link href="/alertes" className="quick-button red"><Bell size={20} />Centre d’alertes<ChevronRight size={18} /></Link><Link href="/rapports" className="quick-button purple"><FileText size={20} />Gérer les rapports<ChevronRight size={18} /></Link></div><div className="cockpit-note"><Waves size={16} /> Données actualisées automatiquement</div></div></section>{insight && <div className="modal-backdrop" onClick={() => setInsight(null)}><div className="modal-card ai-insight-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setInsight(null)}><X size={18} /></button><div className="ai-insight-title"><span className="ai-orb"><Sparkles size={19} /></span><div><span className="eyebrow">Lecture NaviGarde IA</span><h2>{insight.headline}</h2></div><span className={`ai-severity ${insight.severity}`}>{insight.severity}</span></div><p>{insight.summary}</p><div className="insight-columns"><div><strong>Signaux observés</strong>{insight.signals.map((signal) => <span key={signal}>• {signal}</span>)}</div><div><strong>Actions recommandées</strong>{insight.actions.map((action) => <span key={action}>→ {action}</span>)}</div></div><div className="insight-confidence"><span>Confiance de lecture</span><strong>{insight.confidence}%</strong><i><b style={{ width: `${insight.confidence}%` }} /></i></div><small className="human-note"><BrainCircuit size={14} /> Analyse d’aide à la décision : validation humaine obligatoire.</small></div></div>}{focus && <div className="modal-backdrop" onClick={() => setFocus(null)}><div className="modal-card detail-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setFocus(null)}>×</button><span className="eyebrow">Fiche opérationnelle</span><h2>{focus}</h2><p>Cette fiche consolide les signaux de terrain, l’analyse IA et les décisions humaines liées à cet élément.</p><div className="detail-grid"><div><small>Dernière action</small><strong>Analyse IA disponible</strong></div><div><small>Responsable</small><strong>Adélaïde HOUNDE</strong></div><div><small>Zone</small><strong>Littoral · Bénin</strong></div><div><small>Prochaine étape</small><strong>Validation superviseur</strong></div></div><Link href={focus.includes("Alerte") ? "/alertes" : "/inspections/new"} className="primary-button">Ouvrir le dossier <ChevronRight size={16} /></Link></div></div>}</AppShell>
+  const [query, setQuery] = useState("");
+  const [period, setPeriod] = useState<"24 heures" | "7 jours" | "30 jours">("7 jours");
+  const [insight, setInsight] = useState<Insight | null>(null);
+  const analysis = trpc.ai.analyzeDashboard.useMutation();
+  const dashboardQuery = trpc.data.dashboard.metrics.useQuery({ period }, { refetchInterval: 30000 });
+  const metrics = dashboardQuery.data?.totals;
+  const activity = dashboardQuery.data?.activity ?? [];
+  const risks = dashboardQuery.data?.risks ?? [];
+  const inspections = dashboardQuery.data?.recentInspections?.map((item) => ({
+    date: new Date(item.inspectionDate).toLocaleString("fr-FR"),
+    boat: `Embarcation #${item.vesselId}`,
+    type: "Inspection",
+    place: item.place,
+    risk: item.riskScore >= 75 ? "Critique" : item.riskScore >= 50 ? "Eleve" : item.riskScore >= 25 ? "Moyen" : "Faible",
+    status: item.status === "terminee" ? "Cloturee" : item.status === "rejetee" ? "Rejetee" : "En cours",
+    agent: item.agentId ? `Agent #${item.agentId}` : "Non affecte"
+  })) ?? [];
+  const alerts = dashboardQuery.data?.recentAlerts?.map((item) => ({
+    title: item.title,
+    boat: item.vesselId ? `Embarcation #${item.vesselId}` : "Signal terrain",
+    meta: `${new Date(item.createdAt).toLocaleString("fr-FR")} · ${item.place}`,
+    tone: item.urgency === "detresse" ? "critical" : item.urgency === "elevee" ? "warning" : "info"
+  })) ?? [];
+
+  const filteredInspections = useMemo(() => inspections.filter((item) => `${item.boat} ${item.place} ${item.agent}`.toLowerCase().includes(query.toLowerCase())), [query, inspections]);
+  const filteredAlerts = useMemo(() => alerts.filter((item) => `${item.title} ${item.boat}`.toLowerCase().includes(query.toLowerCase())), [query, alerts]);
+
+  const analyze = async () => {
+    toast.info("Analyse IA lancee · NaviGarde croise les signaux avec les risques terrain.");
+    try {
+      const result = await analysis.mutateAsync({ period, activity, risks, problems: [], delays: [], teamScore: 86 });
+      setInsight(result);
+      toast.success("Analyse operationnelle disponible");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Analyse IA indisponible");
+    }
+  };
+
+  return (
+    <AppShell>
+      <section className="page-header">
+        <div>
+          <span className="eyebrow">Centre de commandement · Temps reel</span>
+          <h1 className="page-title">Bonjour, Thomas ADJE.</h1>
+          <p className="page-subtitle">Une vue claire des risques, des equipes et des decisions a prendre aujourd’hui.</p>
+        </div>
+        <div className="topbar-right">
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", border: "1px solid var(--ng-line)", background: "#fff", borderRadius: "var(--ng-radius)", padding: "0 1rem", height: "40px", color: "#157eaa" }}>
+            <CalendarDays size={15} />
+            <select value={period} onChange={(e) => { setPeriod(e.target.value as "24 heures" | "7 jours" | "30 jours"); toast.success("Periode changee : " + e.target.value); }} style={{ border: "none", background: "transparent", color: "#315873", fontSize: "12px", outline: "none" }}>
+              <option>24 heures</option>
+              <option>7 jours</option>
+              <option>30 jours</option>
+            </select>
+          </label>
+          <span className="location-chip">
+            <MapPin size={14} /> Littoral · Benin
+          </span>
+        </div>
+      </section>
+
+      <section className="kpi-row">
+        <Kpi icon={FileText} color="#2563eb" label="Inspections totales" value={String(metrics?.inspections ?? 0)} delta={String(metrics?.inspectionsToday ?? 0) + " aujourd’hui"} yesterday="—" />
+        <Kpi icon={Bell} color="#0ca7b0" label="Alertes ouvertes" value={String(metrics?.openAlerts ?? 0)} delta="a traiter" yesterday="—" />
+        <Kpi icon={ShipWheel} color="#7c3aed" label="Embarcations suivies" value={String(metrics?.vessels ?? 0)} delta="en veille" yesterday="—" />
+        <Kpi icon={Clock3} color="#f59e0b" label="Rapports en attente" value={String(metrics?.pendingReports ?? 0)} delta="a valider" down yesterday="—" />
+      </section>
+
+      <section className="dashboard-grid">
+        <div className="card analytics-wide" style={{ gridColumn: "span 2" }}>
+          <div className="card-header">
+            <div>
+              <h2 style={{ fontSize: "18px", fontWeight: 800, color: "var(--ng-text)", margin: "0 0 4px" }}>Activite des inspections</h2>
+              <small style={{ color: "var(--ng-text-muted)" }}>Tendance sur la periode selectionnee</small>
+            </div>
+            <button className="btn-icon primary" onClick={() => analyze()}>
+              <BrainCircuit size={16} />
+            </button>
+          </div>
+          <div className="card-body" style={{ paddingTop: 0 }}>
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart data={activity}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#eef2f6" />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "var(--ng-text-muted)" }} axisLine={false} tickMargin={8} />
+                <YAxis tick={{ fontSize: 11, fill: "var(--ng-text-muted)" }} axisLine={false} hide />
+                <Tooltip cursor={{ strokeDasharray: "3 3" }} contentStyle={{ background: "#fff", border: "1px solid var(--ng-line)" }} />
+                <Line type="monotone" dataKey="confirmed" stroke="var(--ng-blue)" strokeWidth={2.5} dot={{ fill: "var(--ng-blue)", stroke: "#fff", strokeWidth: 2 }} />
+                <Area type="monotone" dataKey="confirmed" fillOpacity={0.1} fill="var(--ng-blue)" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="card risks-panel">
+          <div className="card-header">
+            <div>
+              <h2 style={{ fontSize: "18px", fontWeight: 800, color: "var(--ng-text)", margin: "0 0 4px" }}>Repartition des risques</h2>
+              <small style={{ color: "var(--ng-text-muted)" }}>Niveau de criticite des embarcations</small>
+            </div>
+            <button className="btn-icon secondary" onClick={() => analyze()}>
+              <BrainCircuit size={16} />
+            </button>
+          </div>
+          <div className="card-body" style={{ paddingTop: 0, display: "flex", gap: 1, flexWrap: "wrap" }}>
+            {risks.map((risk: any, i: number) => (
+              <div key={i} style={{ flex: 1, minWidth: 120, display: "flex", flexDirection: "column", gap: 0.5, alignItems: "center" }}>
+                <div style={{ width: 48, height: 48, borderRadius: "50%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: risk.color === "critique" ? "#fee2e2" : risk.color === "eleve" ? "#fef3c7" : risk.color === "moyen" ? "#e0f2fe" : "#dcfce7" }}>
+                  <span style={{ fontSize: 20 }}>{risk.color === "critique" ? "!" : risk.color === "eleve" ? "!" : risk.color === "moyen" ? "!" : "!"}</span>
+                </div>
+                <strong style={{ fontSize: "13px", color: "var(--ng-text)" }}>{risk.name}</strong>
+                <span style={{ fontSize: "11px", color: risk.color === "critique" ? "var(--ng-danger)" : risk.color === "eleve" ? "var(--ng-warning)" : risk.color === "moyen" ? "var(--ng-info)" : "var(--ng-success)", fontWeight: 700 }}>{risk.value}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="dashboard-grid">
+        <div className="card" style={{ gridColumn: "span 2" }}>
+          <div className="card-header">
+            <div>
+              <h2 style={{ fontSize: "18px", fontWeight: 800, color: "var(--ng-text)", margin: "0 0 4px" }}>Dernieres inspections</h2>
+              <small style={{ color: "var(--ng-text-muted)" }}>Historique des controles maritimes</small>
+            </div>
+            <div className="table-search" style={{ width: 260, position: "relative" }}>
+              <Search size={16} style={{ position: "absolute", left: "1rem", top: "50%", transform: "translateY(-50%)", color: "var(--ng-text-muted)" }} />
+              <input placeholder="Rechercher une embarcation, une zone, un agent…" value={query} onChange={(e) => setQuery(e.target.value)} className="input" style={{ paddingLeft: "2.5rem" }} />
+            </div>
+          </div>
+          <div className="card-body" style={{ paddingTop: 0, overflowX: "auto" }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Embarcation</th>
+                  <th>Zone</th>
+                  <th>Risque</th>
+                  <th>Statut</th>
+                  <th>Date</th>
+                  <th>Agent</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredInspections.map((insp, i) => (
+                  <tr key={i}>
+                    <td><strong>{insp.boat}</strong></td>
+                    <td>{insp.place}</td>
+                    <td><span className={`badge ${insp.risk === "Critique" ? "badge-danger" : insp.risk === "Eleve" ? "badge-warning" : insp.risk === "Moyen" ? "badge-info" : "badge-neutral"}`}>{insp.risk}</span></td>
+                    <td><span className={`badge ${insp.status === "Cloturee" ? "badge-success" : insp.status === "Rejetee" ? "badge-danger" : "badge-info"}`}>{insp.status}</span></td>
+                    <td>{insp.date}</td>
+                    <td>{insp.agent}</td>
+                  </tr>
+                ))}
+                {filteredInspections.length === 0 && (
+                  <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--ng-text-muted)", padding: "2rem" }}>Aucune inspection trouvee</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="card alerts-panel">
+          <div className="card-header">
+            <div>
+              <h2 style={{ fontSize: "18px", fontWeight: 800, color: "var(--ng-text)", margin: "0 0 4px" }}>Alertes recentes</h2>
+              <small style={{ color: "var(--ng-text-muted)" }}>Surveillance maritime en temps reel</small>
+            </div>
+            <Link href="/alertes" className="btn btn-secondary" style={{ height: "auto", padding: "0 1rem", fontSize: "13px" }}>Voir toutes</Link>
+          </div>
+          <div className="card-body" style={{ paddingTop: 0, display: "flex", flexDirection: "column", gap: 0.75 }}>
+            {filteredAlerts.map((alert, i) => (
+              <div key={i} className="alert-row-button" style={{ display: "flex", alignItems: "center", gap: 0.75, padding: "0.75rem 1rem", borderRadius: "var(--ng-radius)", background: "#fff", border: "1px solid var(--ng-line)", cursor: "pointer" }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: alert.tone === "critical" ? "#fee2e2" : alert.tone === "warning" ? "#fef3c7" : "#e0f2fe", color: alert.tone === "critical" ? "var(--ng-danger)" : alert.tone === "warning" ? "var(--ng-warning)" : "var(--ng-info)", fontSize: 16 }}>
+                  <TriangleAlert size={16} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 0.25 }}>
+                    <strong style={{ fontSize: "13px", color: "var(--ng-text)" }}>{alert.title}</strong>
+                    <span style={{ fontSize: "11px", color: "var(--ng-text-muted)" }}>{alert.meta}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>{alert.boat}</span>
+                  </div>
+                </div>
+                <ChevronRight size={14} style={{ color: "var(--ng-text-muted)" }} />
+              </div>
+            ))}
+            {filteredAlerts.length === 0 && (
+              <div style={{ padding: "1.5rem", textAlign: "center", color: "var(--ng-text-muted)" }}>Aucune alerte active</div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {insight && (
+        <section className="ai-insight">
+          <div className="card" style={{ borderLeft: "4px solid var(--ng-blue)" }}>
+            <div className="card-header" style={{ display: "flex", alignItems: "flex-start", gap: 1, marginBottom: 1 }}>
+              <div style={{ width: 36, height: 36, background: "#e0f2fe", borderRadius: "var(--ng-radius)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ng-blue)", fontSize: 18 }}>
+                <Sparkles size={18} />
+              </div>
+              <div>
+                <h2 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "var(--ng-text)" }}>{insight.headline}</h2>
+                <p style={{ margin: "2px 0 0", fontSize: "13px", color: "var(--ng-text-muted)" }}>{insight.summary}</p>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 1, flexWrap: "wrap", marginBottom: 1 }}>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--ng-blue)", background: "#e0f2fe", padding: "4px 8px", borderRadius: "6px" }}>Confiance : {insight.confidence}%</span>
+              {insight.signals.map((s, i) => (
+                <span key={i} style={{ fontSize: "11px", color: "var(--ng-text-muted)", background: "#f1f5f9", padding: "4px 8px", borderRadius: "6px" }}>{s}</span>
+              ))}
+            </div>
+            <div style={{ marginTop: 1 }}>
+              <h3 style={{ fontSize: "13px", fontWeight: 700, color: "var(--ng-text)", margin: "0 0 0.5rem" }}>Actions recommandees</h3>
+              <ul style={{ margin: 0, paddingLeft: 1.25, color: "var(--ng-text-muted)", fontSize: "13px", lineHeight: 1.6 }}>
+                {insight.actions.map((a, i) => <li key={i}>{a}</li>)}
+              </ul>
+            </div>
+          </div>
+        </section>
+      )}
+    </AppShell>
+  );
 }
