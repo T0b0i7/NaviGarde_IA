@@ -11,6 +11,14 @@ const loginAttempts = new Map<string, { count: number; firstAttemptAt: number; l
 function enforceLoginRateLimit(key: string) { const now = Date.now(); const current = loginAttempts.get(key); if (!current || now - current.firstAttemptAt > 15 * 60 * 1000) { loginAttempts.set(key, { count: 0, firstAttemptAt: now, lockedUntil: 0 }); return; } if (current.lockedUntil > now) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Trop de tentatives. Réessayez dans quelques minutes." }); }
 function registerLoginFailure(key: string) { const now = Date.now(); const current = loginAttempts.get(key) ?? { count: 0, firstAttemptAt: now, lockedUntil: 0 }; current.count += 1; if (current.count >= 5) current.lockedUntil = now + 15 * 60 * 1000; loginAttempts.set(key, current); }
 function clearLoginFailures(key: string) { loginAttempts.delete(key); }
+const resetAttempts = new Map<string, { count: number; resetAt: number }>();
+function enforceResetRateLimit(ip: string) {
+  const now = Date.now();
+  const entry = resetAttempts.get(ip);
+  if (!entry || now > entry.resetAt) { resetAttempts.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 }); return; }
+  if (entry.count >= 10) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Trop de demandes de réinitialisation. Réessayez dans une heure." });
+  entry.count += 1;
+}
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.appRole !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Droits administrateur requis." });
   return next();
@@ -29,19 +37,23 @@ export const authRouter = router({
     await addAuditEvent({ userId: user.id, action: "auth.login", entityType: "session", metadata: JSON.stringify({ method: "local" }) });
     return { success: true, user: { id: user.id, name: user.name, email: user.email, appRole: user.appRole } };
   }),
-  requestPasswordReset: publicProcedure.input(z.object({ email: z.string().email() })).mutation(async ({ input }) => {
+  requestPasswordReset: publicProcedure.input(z.object({ email: z.string().email() })).mutation(async ({ input, ctx }) => {
+    const ip = (ctx.req.ip ?? ctx.req.headers["x-forwarded-for"] as string ?? "unknown").toString().split(",")[0].trim();
+    enforceResetRateLimit(ip);
     const user = await getUserByEmail(normalizeEmail(input.email));
     if (!user || user.isActive !== 1) return { success: true, resetToken: null };
     const token = randomBytes(32).toString("base64url");
     await createPasswordResetToken({ userId: user.id, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 30 * 60 * 1000) });
-    // Le fournisseur d’e-mail sera branché sur ce point. En développement, le token permet de tester le parcours sans fuite en production.
     return { success: true, resetToken: process.env.NODE_ENV === "production" ? null : token };
   }),
-  resetPassword: publicProcedure.input(z.object({ token: z.string().min(20), password: passwordSchema })).mutation(async ({ input }) => {
+  resetPassword: publicProcedure.input(z.object({ token: z.string().min(20), password: passwordSchema })).mutation(async ({ input, ctx }) => {
+    const ip = (ctx.req.ip ?? ctx.req.headers["x-forwarded-for"] as string ?? "unknown").toString().split(",")[0].trim();
+    enforceResetRateLimit(ip);
     const { consumePasswordResetToken } = await import("./db");
     const reset = await consumePasswordResetToken(hashToken(input.token));
     if (!reset) throw new TRPCError({ code: "BAD_REQUEST", message: "Jeton invalide ou expiré." });
     await setUserPassword(reset.userId, await hashPassword(input.password));
+    await addAuditEvent({ userId: reset.userId, action: "auth.password_reset", entityType: "user", entityId: String(reset.userId) });
     return { success: true };
   }),
   logout: publicProcedure.mutation(async ({ ctx }) => {
