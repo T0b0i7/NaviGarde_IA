@@ -15,7 +15,19 @@ async function startServer() {
   const server = createServer(app);
   app.disable("x-powered-by");
   app.use(helmet({
-    contentSecurityPolicy: process.env.NODE_ENV === "production" ? undefined : false,
+    contentSecurityPolicy: process.env.NODE_ENV === "production" ? {
+      directives: {
+        defaultSrc: ["'self'"],
+        baseUri: ["'self'"],
+        fontSrc: ["'self'", "data:"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        connectSrc: ["'self'", "blob:", "data:"],
+        frameAncestors: ["'self'"],
+        formAction: ["'self'"],
+      },
+    } : false,
     crossOriginEmbedderPolicy: false,
   }));
   app.use((_req, res, next) => {
