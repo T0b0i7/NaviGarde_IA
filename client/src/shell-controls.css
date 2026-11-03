@@ -19,24 +19,63 @@
 /* smooth theme cross-fade */
 html.theming, html.theming *, html.theming *::before, html.theming *::after { transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease !important; }
 
-/* dark surfaces for mock cards */
-html.dark body { background: #071a2b; color: #dbeaf2; }
-html.dark .mock-card, html.dark .mock-kpi, html.dark .mock-filters, html.dark .mock-detail, html.dark .mock-tabs { background: #0d263b; border-color: #1e4258; }
-html.dark .mock-h1, html.dark .mock-card-h h3, html.dark .mock-filters h3, html.dark .mock-detail h3, html.dark .mock-kpi strong, html.dark .mock-kpi small { color: #e6f4f7; }
-html.dark .mock-sub, html.dark .mock-kpi span.sub { color: #8fa9ba; }
-html.dark .mock-table thead th { background: #12364d; color: #b9d7e2; }
-html.dark .mock-table tbody td { border-color: #1d4055; color: #c3dae3; }
-html.dark .mock-table tbody tr:hover { background: #123047; }
-html.dark .mock-table tbody tr.sel { background: #14405c; }
-html.dark .topbar, html.dark .search-bar { background: #0d263b; border-color: #1e4258; }
-html.dark .search-bar input { color: #e0eff4; }
-html.dark .lang-track, html.dark .theme-track { background: #102d43; border-color: #2b5066; }
-html.dark .lang-thumb { background: #1c4b68; }
-html.dark .lang-opt.on { color: #fff; }
-html.dark .theme-thumb { background: #2ea5e0; }
-html.dark .icon-sq, html.dark .pg-btns button { background: #102d43; border-color: #31566b; color: #b9d7e2; }
-html.dark .btn-outline-blue { background: transparent; }
-html.dark .legend div, html.dark .tl-item strong { color: #dbeaf2; }
+/* ===== Dark Mode — Palette NaviGarde IA (#061426 / #0B1C33 / #087BFF) ===== */
+html.dark {
+  --bg-primary: #061426;
+  --bg-sidebar: #04152B;
+  --bg-card: #0B1C33;
+  --bg-secondary: #102541;
+  --border-primary: #173B61;
+  --color-primary: #087BFF;
+  --color-secondary: #00C8FF;
+  --success: #00C98A;
+  --warning: #FFAA00;
+  --major: #FF5733;
+  --danger: #FF334F;
+  --critical: #A855F7;
+  --info: #20A9FF;
+  --text-primary: #F4F8FF;
+  --text-secondary: #DCE8F8;
+  --text-secondary-2: #A9BED8;
+  --text-muted: #6F8BAA;
+  --link: #39A6FF;
+}
+html.dark body { background: var(--bg-primary); color: var(--text-secondary); }
+html.dark .sidebar { background: var(--bg-sidebar) !important; border-color: rgba(23,59,97,0.5); }
+html.dark .topbar, html.dark .search-bar { background: var(--bg-card); border-color: var(--border-primary); }
+html.dark .search-bar input { color: var(--text-primary); }
+html.dark .search-bar input::placeholder { color: var(--text-muted); }
+html.dark .mock-card, html.dark .mock-kpi, html.dark .mock-filters, html.dark .mock-detail, html.dark .mock-tabs { background: var(--bg-card); border-color: var(--border-primary); }
+html.dark .mock-card + .mock-card { border-color: var(--border-primary); }
+html.dark .mock-h1 { color: var(--text-primary); }
+html.dark .mock-card-h h3, html.dark .mock-filters h3, html.dark .mock-detail h3, html.dark .mock-kpi strong { color: var(--text-primary); }
+html.dark .mock-kpi small { color: var(--text-secondary-2); }
+html.dark .mock-sub, html.dark .mock-kpi span.sub, html.dark .mock-card-b { color: var(--text-secondary-2); }
+html.dark .mock-table thead th { background: var(--bg-secondary); color: var(--text-secondary-2); border-color: var(--border-primary); }
+html.dark .mock-table tbody td { border-color: var(--border-primary); color: var(--text-secondary); }
+html.dark .mock-table tbody tr:hover { background: var(--bg-secondary); }
+html.dark .mock-table tbody tr.sel { background: #14365c; }
+html.dark .lang-track, html.dark .theme-track { background: var(--bg-secondary); border-color: var(--border-primary); }
+html.dark .lang-thumb { background: var(--bg-card); }
+html.dark .lang-opt.on { color: var(--text-primary); }
+html.dark .theme-thumb { background: var(--color-primary); }
+html.dark .split-theme { background: var(--bg-secondary); border-color: var(--border-primary); }
+html.dark .lang-select-btn { background: var(--bg-card); border-color: var(--border-primary); color: var(--text-primary); }
+html.dark .lang-menu { background: var(--bg-card); border-color: var(--border-primary); }
+html.dark .lang-item { color: var(--text-secondary); }
+html.dark .lang-item:hover, html.dark .lang-item.on { background: var(--bg-secondary); }
+html.dark .icon-sq, html.dark .pg-btns button { background: var(--bg-secondary); border-color: var(--border-primary); color: var(--text-secondary); }
+html.dark .btn-outline-blue { background: transparent; border-color: var(--color-primary); color: var(--color-primary); }
+html.dark .legend div, html.dark .tl-item strong { color: var(--text-primary); }
+html.dark .mock-kpi { box-shadow: 0 8px 22px rgba(0,0,0,0.35); }
+html.dark .bdg-green { background: rgba(0,201,138,0.18); color: var(--success); border: 1px solid rgba(0,201,138,0.35); }
+html.dark .bdg-yellow { background: rgba(255,170,0,0.18); color: var(--warning); border: 1px solid rgba(255,170,0,0.35); }
+html.dark .bdg-orange { background: rgba(255,87,51,0.18); color: var(--major); border: 1px solid rgba(255,87,51,0.35); }
+html.dark .bdg-red { background: rgba(255,51,79,0.18); color: var(--danger); border: 1px solid rgba(255,51,79,0.35); }
+html.dark .bdg-purple { background: rgba(168,85,247,0.18); color: var(--critical); border: 1px solid rgba(168,85,247,0.35); }
+html.dark .bdg-blue { background: rgba(8,123,255,0.18); color: var(--color-primary); border: 1px solid rgba(8,123,255,0.35); }
+html.dark a { color: var(--link); }
+html.dark .page-content { background: var(--bg-primary); }
 
 /* sidebar footer brand card (full logo on dark navy) */
 .sidebar-brand-card { background: #fff; border-radius: 16px; padding: 10px 12px 8px; margin: 0 18px; box-shadow: 0 8px 22px rgba(0,0,0,0.25); }
