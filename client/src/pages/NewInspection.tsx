@@ -1,293 +1,236 @@
-import { ChangeEvent, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, CalendarDays, Camera, Check, ChevronDown, ChevronRight, FileText, Info, Lightbulb, MapPin, Mic, Plus, ShipWheel, Square, Trash2, UploadCloud, UserRound } from "lucide-react";
-import { Link } from "wouter";
+import { ChangeEvent, useEffect, useState } from "react";
+import { ArrowLeft, CalendarDays, Camera, Check, CloudUpload, Cpu, Info, Lightbulb, MapPin, Plus, Ship, Trash2, User, X } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import AppShell from "@/components/AppShell";
 import { trpc } from "@/lib/trpc";
+import { useLang } from "@/i18n/LanguageContext";
 
-const steps = ["Informations", "Photos", "Analyse", "Resultat"];
 type Analysis = { passengersDetected: number; lifejacketsVisible: number; capacityRisk: string; riskScore: number; confidence: number; hull: string; engine: string; findings: string[]; recommendation: string; uncertainty: string[] };
-
 async function toDataUrl(src: string): Promise<string> {
   if (src.startsWith("data:")) return src;
-  const response = await fetch(src);
-  const blob = await response.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+  const r = await fetch(src); const b = await r.blob();
+  return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = rej; fr.readAsDataURL(b); });
 }
 
 export default function NewInspection() {
+  const { t, locale } = useLang();
+  const [, navigate] = useLocation();
   const [step, setStep] = useState(0);
   const [photos, setPhotos] = useState<string[]>([]);
-  const [form, setForm] = useState({ boat: "", type: "Pirogue", capacity: "30", place: "Porto-Novo", agent: "", comments: "" });
+  const [form, setForm] = useState({ boat: "", type: "Pirogue", capacity: "30", place: "Porto-Novo", owner: "", comments: "" });
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
-  const [report, setReport] = useState("");
   const [aiError, setAiError] = useState("");
   const [inspectionId, setInspectionId] = useState<number | null>(null);
+  const [progress, setProgress] = useState(0);
+  const me = trpc.auth.me.useQuery(undefined, { retry: false });
+  const createFull = trpc.data.inspections.createFull.useMutation();
+  const uploadImg = trpc.data.inspections.uploadImage.useMutation();
+  const saveAnalysis = trpc.data.inspections.saveAnalysis.useMutation();
+  const analyzeMut = trpc.ai.analyzeInspection.useMutation();
+  const genReport = trpc.data.reports.createFromInspection.useMutation({ onSuccess: (r) => { toast.success(`${r.reference}`); navigate(`/rapports/${r.id}`); }, onError: (e) => toast.error(e.message) });
+  const upd = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
-  const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const STEPS = [t("wiz.stepInfo"), t("wiz.stepPhotos"), t("wiz.stepAnalysis"), t("wiz.stepResult")];
+  const titles = [t("wiz.t0"), t("wiz.t1"), t("wiz.t2"), t("wiz.t3")];
+  const subs = [t("wiz.s0"), t("wiz.s1"), t("wiz.s2"), t("wiz.s3")];
 
-  const onFiles = (event: ChangeEvent<HTMLInputElement>) => {
-    const accepted = Array.from(event.target.files ?? []).filter((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type) && file.size <= 10 * 1024 * 1024).slice(0, 10 - photos.length);
-    if (accepted.length !== (event.target.files?.length ?? 0)) setAiError("Certaines images ont été refusees : formats JPG/PNG/WebP et taille maximale de 10 Mo.");
-    setPhotos((current) => [...current, ...accepted.map((file) => URL.createObjectURL(file))]);
-    event.target.value = "";
+  const onFiles = (e: ChangeEvent<HTMLInputElement>) => {
+    const acc = Array.from(e.target.files ?? []).filter((f) => ["image/jpeg", "image/png", "image/webp"].includes(f.type) && f.size <= 10 * 1024 * 1024).slice(0, 10 - photos.length);
+    if (acc.length !== (e.target.files?.length ?? 0)) setAiError(t("wiz.errImg"));
+    setPhotos((p) => [...p, ...acc.map((f) => URL.createObjectURL(f))]);
+    e.target.value = "";
   };
 
-  const removePhoto = (index: number) => setPhotos((current) => current.filter((_, i) => i !== index));
-
-  const createVesselMutation = trpc.data.vessels.create.useMutation();
-  const createInspectionMutation = trpc.data.inspections.create.useMutation();
-  const uploadImageMutation = trpc.data.inspections.uploadImage.useMutation();
-  const saveAnalysisMutation = trpc.data.inspections.saveAnalysis.useMutation();
-  const analyzeMutation = trpc.ai.analyzeInspection.useMutation();
-  const reportMutation = trpc.ai.generateReport.useMutation();
-
-  const prepareInspection = async () => {
-    if (inspectionId) return inspectionId;
-    if (!form.boat.trim() || !form.place || !form.agent) throw new Error("Renseignez l'immatriculation, le lieu et l'agent responsable.");
-    const vessel = await createVesselMutation.mutateAsync({ registrationNumber: form.boat.trim(), name: form.boat.trim(), type: form.type, ownerName: form.agent, capacity: Number(form.capacity) || 0, place: form.place, status: "conforme", riskScore: 0 });
-    const created = await createInspectionMutation.mutateAsync({ vesselId: vessel.id, place: form.place, inspectionDate: new Date(), comments: form.comments, passengersDetected: 0, lifejacketsVisible: 0 });
-    setInspectionId(created.id);
-    const storedImages = await Promise.all((await Promise.all(photos.slice(0, 10).map(toDataUrl))).map((dataUrl) => uploadImageMutation.mutateAsync({ inspectionId: created.id, dataUrl, imageType: "inspection" })));
-    toast.success("Inspection #" + created.id + " cree", { description: storedImages.length + " photo(s) stockee(s) de facon securisee." });
-    return created.id;
-  };
+  useEffect(() => {
+    if (step === 2 && (analyzeMut.isPending || createFull.isPending)) {
+      setProgress(8);
+      const timer = setInterval(() => setProgress((p) => Math.min(96, p + Math.random() * 7)), 600);
+      return () => clearInterval(timer);
+    }
+    if (step === 3) setProgress(100);
+  }, [step, analyzeMut.isPending, createFull.isPending]);
 
   const analyze = async () => {
     setAiError("");
     try {
-      const id = await prepareInspection();
-      const images = await Promise.all(photos.slice(0, 5).map(toDataUrl));
-      const result = await analyzeMutation.mutateAsync({ boat: form.boat, type: form.type, capacity: Number(form.capacity) || 0, place: form.place, images });
-      await saveAnalysisMutation.mutateAsync({ inspectionId: id, analysis: result });
-      setAnalysis(result);
-      setStep(3);
-      toast.success("Analyse IA enregistree", { description: "Le resultat est disponible dans le dossier d'inspection." });
-    } catch (error) {
-      setAiError(error instanceof Error ? error.message : "Analyse IA indisponible. Verifiez la configuration Baseten.");
-    }
+      let id = inspectionId;
+      if (!id) {
+        if (!form.boat.trim() || !form.owner.trim()) throw new Error(t("wiz.errRegOwner"));
+        if (!photos.length) throw new Error(t("wiz.errPhoto"));
+        const c = await createFull.mutateAsync({ registrationNumber: form.boat.trim(), vesselType: form.type, ownerName: form.owner.trim(), capacity: Number(form.capacity) || 0, place: form.place, comments: form.comments });
+        id = c.inspectionId; setInspectionId(id);
+        const urls = await Promise.all(photos.slice(0, 10).map(toDataUrl));
+        for (const d of urls) { try { await uploadImg.mutateAsync({ inspectionId: id, dataUrl: d, imageType: "inspection" }); } catch {} }
+      }
+      const imgs = await Promise.all(photos.slice(0, 5).map(toDataUrl));
+      const res = await analyzeMut.mutateAsync({ boat: form.boat, type: form.type, capacity: Number(form.capacity) || 0, place: form.place, images: imgs });
+      await saveAnalysis.mutateAsync({ inspectionId: id, analysis: res });
+      setAnalysis(res); setStep(3); toast.success(t("wiz.done"));
+    } catch (err) { setAiError(err instanceof Error ? err.message : "AI unavailable"); }
   };
 
-  const generateReport = async () => {
-    if (!analysis) return;
-    setAiError("");
-    try {
-      const result = await reportMutation.mutateAsync({ boat: form.boat, type: form.type, capacity: Number(form.capacity) || 0, place: form.place, agent: form.agent, analysis: analysis as any });
-      setReport(result);
-    } catch (error) {
-      setAiError(error instanceof Error ? error.message : "Generation du rapport indisponible.");
-    }
-  };
-
-  const goNext = () => {
-    if (step === 1) setStep(2);
-    else if (step === 2) void analyze();
-    else setStep((s) => Math.min(3, s + 1));
-  };
+  const riskWord = !analysis ? "" : analysis.riskScore >= 75 ? t("risk.critical") : analysis.riskScore >= 50 ? t("risk.high") : analysis.riskScore >= 25 ? t("risk.medium") : t("risk.low");
 
   return (
     <AppShell>
-      <div className="page-header">
-        <div>
-          <Link href="/" className="back-link"><ArrowLeft size={16} /> Retour</Link>
-          <h1 className="page-title">Nouvelle inspection</h1>
-          <p className="page-subtitle">Renseignez les informations et obtenez un diagnostic explicable par IA.</p>
+      <Link href="/inspections" className="mock-back"><ArrowLeft size={14} /> {t("c.back")} <span style={{ color: "#7b93a8" }}>| {t("wiz.t0")}{step === 3 ? ` | ${t("wiz.stepResult")}` : ""}</span></Link>
+      <h1 className="mock-h1">{titles[step]}</h1>
+      <p className="mock-sub">{subs[step]}</p>
+      <div style={{ height: 14 }} />
+
+      <div className="mock-page" style={{ gridTemplateColumns: "minmax(0,1fr) 320px" }}>
+        <div className="mock-main">
+          <div className="mock-card"><div className="mock-card-b" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {STEPS.map((s, i) => (
+              <div key={s} style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                <span style={{ width: 30, height: 30, borderRadius: "50%", display: "grid", placeItems: "center", background: i <= step ? "#0d7fdd" : "#cbd9e6", color: "#fff", fontWeight: 800, fontSize: 13, flexShrink: 0 }}>{i < step ? <Check size={15} /> : i + 1}</span>
+                <strong style={{ fontSize: 12.5, color: i <= step ? "#0a2a5e" : "#8aa3bb" }}>{s}</strong>
+                {i < 3 && <span style={{ flex: 1, height: 2, background: i < step ? "#0d7fdd" : "#d9e6f2", borderRadius: 2 }} />}
+              </div>
+            ))}
+          </div></div>
+
+          {step === 0 && (
+            <div className="mock-card"><div className="mock-card-b" style={{ display: "grid", gap: 18 }}>
+              <div><h3 style={{ margin: "0 0 12px", fontSize: 15, display: "flex", gap: 8, alignItems: "center" }}><Ship size={17} color="#0d7fdd" /> {t("wiz.vesselInfo")}</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                  <F label={`${t("wiz.reg")} *`}><div className="inp"><Ship size={15} /><input value={form.boat} onChange={(e) => upd("boat", e.target.value)} placeholder={t("wiz.regPh")} /></div></F>
+                  <F label={`${t("wiz.vtype")} *`}><div className="inp"><Ship size={15} /><select value={form.type} onChange={(e) => upd("type", e.target.value)}><option>Pirogue</option><option>Vedette</option><option>Barge</option><option>Ferry</option><option>Chalutier</option><option>Coque</option></select></div></F>
+                  <F label={`${t("wiz.capacity")} *`}><div className="inp"><User size={15} /><input value={form.capacity} onChange={(e) => upd("capacity", e.target.value)} inputMode="numeric" /></div></F>
+                </div></div>
+              <div><h3 style={{ margin: "0 0 12px", fontSize: 15, display: "flex", gap: 8, alignItems: "center" }}><MapPin size={17} color="#0d7fdd" /> {t("wiz.placeDate")}</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <F label={`${t("wiz.place")} *`}><div className="inp"><MapPin size={15} /><select value={form.place} onChange={(e) => upd("place", e.target.value)}><option>Cotonou</option><option>Porto-Novo</option><option>Ouidah</option><option>Sèmè-Kpodji</option><option>Grand-Popo</option><option>Abomey-Calavi</option></select></div></F>
+                  <F label={`${t("wiz.dateTime")} *`}><div className="inp"><CalendarDays size={15} /><input value={new Date().toLocaleString(locale)} readOnly /></div></F>
+                </div></div>
+              <div><h3 style={{ margin: "0 0 12px", fontSize: 15, display: "flex", gap: 8, alignItems: "center" }}><User size={17} color="#0d7fdd" /> {t("wiz.agentBlock")}</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <F label={`${t("wiz.agentNow")} *`}><div className="inp"><User size={15} /><input value={me.data?.name ?? "…"} readOnly /></div></F>
+                  <F label={`${t("wiz.owner")} *`}><div className="inp"><User size={15} /><input value={form.owner} onChange={(e) => upd("owner", e.target.value)} placeholder={t("wiz.ownerPh")} /></div></F>
+                </div>
+                <div style={{ marginTop: 12 }}><F label={`${t("wiz.comments")} (${t("c.optional")})`}><div className="inp"><input value={form.comments} onChange={(e) => upd("comments", e.target.value)} placeholder={t("wiz.commentsPh")} maxLength={200} /></div></F><div style={{ textAlign: "right", fontSize: 11, color: "#8aa3bb" }}>{form.comments.length}/200</div></div></div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #edf2f7", paddingTop: 14 }}>
+                <Link href="/inspections" className="btn-outline-blue" style={{ width: "auto", padding: "0 22px", textDecoration: "none" }}>{t("c.cancel")}</Link>
+                <button className="btn-blue" style={{ padding: "0 26px" }} onClick={() => { if (!form.boat.trim() || !form.owner.trim()) { toast.error(t("wiz.errRegOwner")); return; } setStep(1); }}>{t("wiz.next")} →</button>
+              </div>
+            </div></div>
+          )}
+
+          {step === 1 && (
+            <div className="mock-card"><div className="mock-card-b" style={{ display: "grid", gap: 16 }}>
+              <div><h3 style={{ margin: 0, fontSize: 16, display: "flex", gap: 8, alignItems: "center" }}><Camera size={18} color="#0d7fdd" /> {t("wiz.addPhotos")}</h3><p style={{ margin: "4px 0 0", fontSize: 13, color: "#5b7a96" }}>{t("wiz.addPhotosSub")}</p></div>
+              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 12 }}>
+                <label style={{ border: "1.5px dashed #9ec7e8", borderRadius: 14, background: "#f4f9fe", padding: "2rem 1rem", textAlign: "center", cursor: "pointer", display: "grid", gap: 6, placeItems: "center" }}>
+                  <CloudUpload size={44} color="#5b8fc4" /><strong style={{ fontSize: 14 }}>{t("wiz.drop")}<br /><span style={{ fontWeight: 500, color: "#0d7fdd" }}>{t("wiz.browse")}</span></strong><small style={{ color: "#7b93a8", fontSize: 11.5 }}>{t("wiz.constraints")}</small>
+                  <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={onFiles} style={{ display: "none" }} />
+                </label>
+                <div style={{ background: "#eef6fd", borderRadius: 14, padding: 16 }}>
+                  <strong style={{ fontSize: 13, display: "flex", gap: 7, alignItems: "center", color: "#0d7fdd" }}><Lightbulb size={15} /> {t("wiz.tips")}</strong>
+                  <div style={{ marginTop: 10, display: "grid", gap: 8, fontSize: 12.5 }}>{[t("wiz.tip1"), t("wiz.tip2"), t("wiz.tip3"), t("wiz.tip4")].map((c) => <span key={c} style={{ display: "flex", gap: 8, alignItems: "center" }}><Check size={14} color="#0d7fdd" />{c}</span>)}</div>
+                </div>
+              </div>
+              <div><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}><strong style={{ fontSize: 13 }}>{t("wiz.added")} ({photos.length}/10)</strong><button style={{ color: "#0d7fdd", fontSize: 12, fontWeight: 700, display: "inline-flex", gap: 6, alignItems: "center" }} onClick={() => setPhotos([])}><Trash2 size={13} /> {t("wiz.clearAll")}</button></div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
+                  {photos.map((src, i) => <div key={i} style={{ position: "relative" }}><img src={src} alt="" style={{ width: "100%", height: 84, objectFit: "cover", borderRadius: 10 }} /><button onClick={() => setPhotos((p) => p.filter((_, x) => x !== i))} style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: "50%", background: "#0a2a5e", color: "#fff", display: "grid", placeItems: "center" }}><X size={12} /></button><span style={{ position: "absolute", bottom: 4, left: 4, width: 22, height: 22, borderRadius: "50%", background: "#0a2a5e", color: "#fff", fontSize: 11, fontWeight: 800, display: "grid", placeItems: "center" }}>{i + 1}</span></div>)}
+                  <label style={{ height: 84, border: "1.5px dashed #9ec7e8", borderRadius: 10, display: "grid", placeItems: "center", color: "#0d7fdd", cursor: "pointer", fontSize: 12 }}><span style={{ textAlign: "center" }}><Plus size={20} style={{ margin: "0 auto" }} /><br />{t("wiz.addOne")}</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={onFiles} style={{ display: "none" }} /></label>
+                </div></div>
+              {aiError && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: 10, fontSize: 13, color: "#b91c1c" }}>{aiError}</div>}
+              <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #edf2f7", paddingTop: 14 }}>
+                <button className="btn-outline-blue" style={{ width: "auto", padding: "0 22px" }} onClick={() => setStep(0)}><ArrowLeft size={15} /> {t("c.back")}</button>
+                <button className="btn-blue" style={{ padding: "0 26px" }} onClick={() => { if (!photos.length) { toast.error(t("wiz.errPhoto")); return; } setStep(2); }}>{t("wiz.next")} →</button>
+              </div>
+            </div></div>
+          )}
+
+          {step === 2 && (
+            <div className="mock-card"><div className="mock-card-b" style={{ display: "grid", gap: 18, justifyItems: "center", textAlign: "center" }}>
+              <div style={{ width: 190, height: 190, borderRadius: "50%", background: `conic-gradient(#0ea5e9 ${progress}%, #dceefb ${progress}%)`, display: "grid", placeItems: "center" }}>
+                <div style={{ width: 158, height: 158, borderRadius: "50%", background: "#fff", display: "grid", placeItems: "center" }}><div><Cpu size={40} color="#0d7fdd" style={{ margin: "0 auto" }} /><div style={{ fontSize: 28, fontWeight: 800, color: "#0a2a5e" }}>{Math.round(progress)}%</div></div></div>
+              </div>
+              <div style={{ fontWeight: 700, color: "#0a2a5e" }}>{analyzeMut.isPending || createFull.isPending ? t("wiz.running") : t("wiz.ready")}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, width: "100%", background: "#f4f9fe", borderRadius: 12, padding: 16 }}>
+                {[[t("wiz.prep"), analyzeMut.isPending || progress > 15 ? "done" : "todo"], [t("wiz.detect"), progress > 40 ? "done" : "todo"], [t("wiz.anom"), analyzeMut.isPending ? "run" : progress >= 96 ? "done" : "todo"], [t("wiz.eval"), "todo"]].map(([label, st]) => (
+                  <div key={label as string} style={{ display: "grid", gap: 6, justifyItems: "center", fontSize: 11.5 }}>
+                    <span style={{ width: 26, height: 26, borderRadius: "50%", display: "grid", placeItems: "center", background: st === "done" ? "#16a34a" : st === "run" ? "#0d7fdd" : "#fff", border: st === "todo" ? "2px solid #cbd9e6" : "0", color: "#fff" }}>{st === "done" ? <Check size={14} /> : st === "run" ? <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#fff" }} /> : null}</span>
+                    <span style={{ fontWeight: 600, color: "#0a2a5e" }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+              {aiError && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: 10, fontSize: 13, color: "#b91c1c", width: "100%" }}>{aiError}</div>}
+              <div style={{ background: "#eef6fd", borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: "#0d7fdd", width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}><span>{t("wiz.aiNote")}</span><span className="bdg bdg-blue">{analyzeMut.isPending ? t("wiz.running") : t("wiz.ready")}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", width: "100%", borderTop: "1px solid #edf2f7", paddingTop: 14 }}>
+                <button className="btn-outline-blue" style={{ width: "auto", padding: "0 22px" }} disabled={analyzeMut.isPending} onClick={() => setStep(1)}><ArrowLeft size={15} /> {t("c.back")}</button>
+                <button className="btn-blue" style={{ padding: "0 26px" }} disabled={analyzeMut.isPending || createFull.isPending} onClick={() => void analyze()}>{analyzeMut.isPending || createFull.isPending ? `${t("wiz.running")}` : t("wiz.launch")} →</button>
+              </div>
+            </div></div>
+          )}
+
+          {step === 3 && (
+            !analysis ? <div className="mock-card"><div className="mock-card-b" style={{ textAlign: "center", color: "#7b93a8" }}>{t("wiz.noResult")}{aiError && <div style={{ marginTop: 10, color: "#b91c1c" }}>{aiError}</div>}<div style={{ marginTop: 12 }}><button className="btn-blue" style={{ padding: "0 22px" }} onClick={() => setStep(2)}>{t("wiz.backToAnalysis")}</button></div></div></div> : (
+            <>
+              <div className="mock-card"><div className="mock-card-b" style={{ display: "grid", gridTemplateColumns: "280px 1fr 220px", gap: 16 }}>
+                <div><div style={{ position: "relative" }}><img src={photos[0] ?? "/boat-inspection.jpg"} alt="" style={{ width: "100%", height: 190, objectFit: "cover", borderRadius: 12 }} /><span style={{ position: "absolute", top: 8, left: 8, background: "rgba(2,20,40,0.75)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 8 }}>📷 {photos.length} photos</span></div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, marginTop: 8 }}>{photos.slice(0, 5).map((s, i) => <img key={i} src={s} alt="" style={{ width: "100%", height: 44, objectFit: "cover", borderRadius: 8 }} />)}</div></div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span className="bdg bdg-green"><Check size={11} /> {t("wiz.done")}</span><span style={{ color: "#7b93a8" }}>{t("wiz.confidence")} {analysis.confidence}%</span></div>
+                  <div style={{ width: 150, height: 150, borderRadius: "50%", margin: "12px auto", background: `conic-gradient(#16a34a ${analysis.confidence}%, #eef2f6 ${analysis.confidence}%)`, display: "grid", placeItems: "center" }}><div style={{ width: 118, height: 118, borderRadius: "50%", background: "#fff", display: "grid", placeItems: "center" }}><div><div style={{ fontSize: 26, fontWeight: 800 }}>{analysis.confidence}%</div><div style={{ fontSize: 11, color: "#7b93a8" }}>{t("wiz.confidence")}</div></div></div></div>
+                </div>
+                <div>
+                  <div style={{ background: analysis.riskScore >= 50 ? "#fef2f2" : "#dcfce7", borderRadius: 12, padding: 12, textAlign: "center" }}><small style={{ color: "#7b93a8", fontSize: 11 }}>{t("wiz.globalRisk")}</small><div style={{ fontSize: 22, fontWeight: 800, color: analysis.riskScore >= 75 ? "#b91c1c" : analysis.riskScore >= 50 ? "#c2410c" : "#15803d" }}>{riskWord}</div></div>
+                  <div style={{ marginTop: 10, display: "grid", gap: 6, fontSize: 12.5 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}><i style={{ width: 10, height: 10, borderRadius: "50%", background: "#ef4444" }} /> {t("wiz.crit")} <b style={{ marginLeft: "auto" }}>{analysis.riskScore >= 75 ? 1 : 0}</b></div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}><i style={{ width: 10, height: 10, borderRadius: "50%", background: "#f97316" }} /> {t("wiz.maj")} <b style={{ marginLeft: "auto" }}>{analysis.findings.length}</b></div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}><i style={{ width: 10, height: 10, borderRadius: "50%", background: "#f59e0b" }} /> {t("wiz.pass")} <b style={{ marginLeft: "auto" }}>{analysis.passengersDetected}</b></div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}><i style={{ width: 10, height: 10, borderRadius: "50%", background: "#16a34a" }} /> {t("wiz.vests")} <b style={{ marginLeft: "auto" }}>{analysis.lifejacketsVisible}</b></div>
+                  </div>
+                </div>
+              </div></div>
+              <div className="mock-card"><div className="mock-card-h"><h3 style={{ color: "#b91c1c" }}>⚠ {t("wiz.anoms")} ({analysis.findings.length})</h3></div>
+                <div style={{ padding: "0 12px 12px" }}>
+                <table className="mock-table"><thead><tr><th>N°</th><th>{t("wiz.colAnomaly")}</th><th>{t("wiz.colRisk")}</th><th>{t("wiz.colConf")}</th><th>{t("wiz.colStatus")}</th></tr></thead><tbody>
+                  {analysis.findings.map((f, i) => <tr key={i}><td>{i + 1}</td><td style={{ fontSize: 12.5 }}>{f}</td><td><span className={`bdg ${analysis.riskScore >= 75 ? "bdg-red" : analysis.riskScore >= 50 ? "bdg-orange" : "bdg-yellow"}`}>{riskWord}</span></td><td>{analysis.confidence}%</td><td><span className="bdg bdg-red">{t("wiz.open")}</span></td></tr>)}
+                </tbody></table></div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <button className="btn-outline-blue" style={{ width: "auto", padding: "0 22px" }} onClick={() => setStep(2)}><ArrowLeft size={15} /> {t("c.back")}</button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {inspectionId && <button className="btn-outline-blue" style={{ width: "auto", padding: "0 18px" }} onClick={() => navigate(`/inspections/${inspectionId}`)}>{t("wiz.viewFile")}</button>}
+                  <button className="btn-blue" style={{ padding: "0 22px" }} disabled={!inspectionId || genReport.isPending} onClick={() => inspectionId && genReport.mutate({ inspectionId })}>{genReport.isPending ? t("wiz.generating") : `${t("wiz.genReport")} →`}</button>
+                </div>
+              </div>
+            </>
+            )
+          )}
+        </div>
+
+        <div className="mock-side">
+          <div className="mock-detail">
+            <h3>{step === 0 ? t("wiz.recap") : t("wiz.recapFull")}</h3>
+            <img src={photos[0] ?? "/boat-inspection.jpg"} alt="" style={{ width: "100%", height: 150, objectFit: "cover", borderRadius: 12 }} />
+            <div className="mock-kv"><Ship size={15} /><div><small>{t("wiz.fVessel")}</small><strong>{form.boat || "-"}</strong></div></div>
+            <div className="mock-kv"><Ship size={15} /><div><small>{t("wiz.fType")}</small><strong>{form.type}</strong></div></div>
+            <div className="mock-kv"><User size={15} /><div><small>{t("wiz.fCap")}</small><strong>{form.capacity} {t("wiz.pax")}</strong></div></div>
+            <div className="mock-kv"><MapPin size={15} /><div><small>{t("wiz.fPlace")}</small><strong>{form.place}</strong></div></div>
+            <div className="mock-kv"><CalendarDays size={15} /><div><small>{t("wiz.fDate")}</small><strong>{new Date().toLocaleString(locale)}</strong></div></div>
+            <div className="mock-kv"><User size={15} /><div><small>{t("wiz.fAgent")}</small><strong>{me.data?.name ?? "…"}</strong></div></div>
+            {step >= 2 && analysis && (
+              <>
+                <div className="mock-kv"><Info size={15} /><div><small>{t("wiz.riskEval")}</small><strong style={{ color: analysis.riskScore >= 50 ? "#b91c1c" : "#15803d" }}>{analysis.riskScore}/100 · {riskWord}</strong></div></div>
+                <div style={{ fontSize: 12, color: "#0a2a5e" }}><strong>{t("wiz.recos")}</strong><p style={{ margin: "6px 0 0", color: "#5b7a96" }}>{analysis.recommendation}</p></div>
+              </>
+            )}
+            <div style={{ background: "#eef6fd", borderRadius: 10, padding: 10, fontSize: 12, color: "#0d7fdd", display: "flex", gap: 8 }}><Info size={15} style={{ flexShrink: 0, marginTop: 1 }} />{step === 0 ? t("wiz.infoNext") : step === 1 ? t("wiz.photosNext") : t("wiz.wait")}</div>
+            {step === 0 && <div style={{ border: "1px solid #e3ecf4", borderRadius: 10, padding: 10, fontSize: 12 }}><strong style={{ display: "flex", gap: 6, alignItems: "center" }}><Lightbulb size={14} color="#0d7fdd" /> {t("wiz.tipTitle")}</strong><p style={{ margin: "6px 0 0", color: "#5b7a96" }}>{t("wiz.tipText")}</p></div>}
+          </div>
         </div>
       </div>
-      <div className="stepper">
-        {steps.map((label, index) => (
-          <div key={label} className={`step ${index === step ? "current" : ""} ${index < step ? "done" : ""}`}>
-            <span>{index < step ? <Check size={16} /> : index + 1}</span>
-            <strong>{label}</strong>
-            {index < steps.length - 1 && <i />}
-          </div>
-        ))}
-      </div>
-      <div className="inspection-layout">
-        <section className="panel form-panel">
-          {step === 0 && <InfoStep form={form} update={update} photos={photos} onFiles={onFiles} removePhoto={removePhoto} />}
-          {step === 1 && <PhotosStep photos={photos} onFiles={onFiles} removePhoto={removePhoto} />}
-          {step === 2 && <AnalysisStep summary={{ ...form, count: photos.length }} isLoading={analyzeMutation.isPending} error={aiError} onAnalyze={analyze} />}
-          {step === 3 && <ResultStep summary={{ ...form, count: photos.length }} analysis={analysis} report={report} isLoading={reportMutation.isPending} error={aiError} onReport={generateReport} />}
-          <div className="form-footer">
-            {step > 0 ? <button className="btn btn-secondary" onClick={() => setStep((s) => s - 1)}><ArrowLeft size={17} /> Retour</button> : <Link href="/" className="btn btn-secondary">Annuler</Link>}
-            {step === 2 ? <button className="btn btn-primary" disabled={analyzeMutation.isPending} onClick={goNext}>{analyzeMutation.isPending ? "Analyse en cours…" : "Analyser avec Muse Spark"}<ArrowRight size={17} /></button> : step < 3 ? <button className="btn btn-primary" onClick={goNext}>Suivant<ArrowRight size={17} /></button> : analysis && analysis.lifejacketsVisible < analysis.passengersDetected ? <button className="btn btn-primary blocked-action" disabled title="Validation bloquée : tous les passagers doivent disposer d'un gilet">Validation bloquée <Info size={17} /></button> : <Link href="/" className="btn btn-primary">Terminer <Check size={17} /></Link>}
-          </div>
-        </section>
-        <section className="panel summary-panel">
-          <SummaryCard summary={{ ...form, count: photos.length }} photos={photos} />
-        </section>
-      </div>
+
+      <style>{`.inp{display:flex;align-items:center;gap:8px;border:1.5px solid #d9e6f2;border-radius:10px;padding:0 12px;height:46px;background:#fff}.inp input,.inp select{flex:1;border:0;outline:0;font-size:13.5px;background:transparent;color:#0a2a5e}.inp svg{color:#5b7a96;flex-shrink:0}`}</style>
     </AppShell>
   );
 }
 
-function InfoStep({ form, update, photos, onFiles, removePhoto }: { form: any; update: (key: any, value: string) => void; photos: string[]; onFiles: (event: ChangeEvent<HTMLInputElement>) => void; removePhoto: (index: number) => void }) {
-  return (
-    <>
-      <div className="section-title"><ShipWheel size={21} /><div><h2>Informations de l'embarcation</h2><p>Identifiez l'embarcation et le contexte de la mission.</p></div></div>
-      <div className="field-grid three">
-        <Field label="Nom ou immatriculation *" icon={<ShipWheel size={16} />} value={form.boat} onChange={(e) => update("boat", e.target.value)} />
-        <label className="field"><span>Type d'embarcation *</span><div className="select-wrap"><ShipWheel size={16} /><select value={form.type} onChange={(e) => update("type", e.target.value)}><option>Pirogue</option><option>Vedette</option><option>Barge</option><option>Ferry</option></select><ChevronDown size={15} /></div></label>
-        <Field label="Capacite de passagers *" icon={<UserRound size={16} />} value={form.capacity} onChange={(e) => update("capacity", e.target.value)} />
-      </div>
-      <div className="form-separator" />
-      <div className="section-title"><MapPin size={21} /><div><h2>Lieu et date de l'inspection</h2></div></div>
-      <div className="field-grid two">
-        <label className="field"><span>Lieu *</span><div className="select-wrap"><MapPin size={16} /><select value={form.place} onChange={(e) => update("place", e.target.value)}><option>Porto-Novo</option><option>Cotonou</option><option>Ouidah</option><option>Seme-Kpodji</option></select><ChevronDown size={15} /></div></label>
-        <Field label="Date et heure *" icon={<CalendarDays size={16} />} value="29/10/2025 14:32" readOnly />
-      </div>
-      <div className="form-separator" />
-      <div className="section-title"><UserRound size={21} /><div><h2>Agent responsable</h2></div></div>
-      <div className="field-grid two">
-        <label className="field"><span>Selectionner un agent *</span><div className="select-wrap"><UserRound size={16} /><select value={form.agent} onChange={(e) => update("agent", e.target.value)}><option>Thomas ADJE</option><option>Adelaide HOUND</option><option>Koffi DOSSA</option></select><ChevronDown size={15} /></div></label>
-        <Field label="Commentaires" icon={<FileText size={16} />} value={form.comments} onChange={(e) => update("comments", e.target.value)} />
-      </div>
-    </>
-  );
-}
-
-function PhotosStep({ photos, onFiles, removePhoto }: { photos: string[]; onFiles: (event: ChangeEvent<HTMLInputElement>) => void; removePhoto: (index: number) => void }) {
-  return (
-    <>
-      <div className="section-title"><Camera size={21} /><div><h2>Ajouter des photographies</h2><p>Prenez des photos claires ou importez des images de l'embarcation.</p></div></div>
-      <div className="upload-advice">
-        <label className="dropzone"><UploadCloud size={42} /><strong>Glissez vos photos ici</strong><span>ou cliquez pour parcourir</span><small>JPG, PNG · Max 10 Mo · Jusqu'à 10 photos</small><input type="file" accept="image/jpeg,image/png" multiple onChange={onFiles} /></label>
-        <div className="advice-box"><Lightbulb size={22} /><strong>Conseils</strong><span><Check size={15} /> Photos bien eclairees</span><span><Check size={15} /> Plusieurs angles</span><span><Check size={15} /> Details importants</span><span><Check size={15} /> Eviter les flous</span></div>
-      </div>
-      <div className="form-separator" />
-      <div className="photos-added">
-        <h3>Photos ajoutees ({photos.length}/10)</h3>
-        <button onClick={() => photos.forEach((_, i) => removePhoto(i))}><Trash2 size={15} /> Tout supprimer</button>
-      </div>
-      <PhotoStrip photos={photos} onFiles={onFiles} removePhoto={removePhoto} />
-    </>
-  );
-}
-
-function AnalysisStep({ summary, isLoading, error, onAnalyze }: { summary: any; isLoading: boolean; error: string; onAnalyze: () => void }) {
-  return (
-    <div className="analysis-state">
-      <div className="analysis-orb"><ShipWheel size={34} /></div>
-      <h2>{isLoading ? "Analyse IA en cours…" : "Analyse prête à demarrer"}</h2>
-      <p>Les photos de <strong>{summary.boat}</strong> seront envoyées de façon sécurisée à Muse Spark Open pour détecter les passagers, gilets, coque et moteur.</p>
-      {isLoading && (<><div className="analysis-progress"><span style={{ width: "72%" }} /></div><small>Lecture des elements visibles · traitement securise</small></>)}
-      {error && <div className="ai-error"><Info size={17} /> {error}</div>}
-      <div className="analysis-note"><Info size={18} /> L'IA propose, l'humain decide. Vous pourrez corriger chaque comptage.</div>
-      <button className="btn btn-primary ai-cta" disabled={isLoading} onClick={onAnalyze}>{isLoading ? "Connexion a Baseten…" : "Lancer l'analyse IA"}</button>
-    </div>
-  );
-}
-
-function ResultStep({ summary, analysis, report, isLoading, error, onReport }: { summary: any; analysis: Analysis | null; report: string; isLoading: boolean; error: string; onReport: () => void }) {
-  const result = analysis ?? { passengersDetected: 12, lifejacketsVisible: 8, confidence: 82, riskScore: 74, capacityRisk: "élevé", findings: ["Résultat de démonstration"], recommendation: "Vérifier les éléments avant validation." };
-  return (
-    <div className="result-state">
-      <div className="result-top">
-        <div>
-          <span className="eyebrow">Diagnostic Muse Spark Open</span>
-          <h2>Inspection analysée</h2>
-          <p>{summary.boat} · {summary.place}</p>
-        </div>
-        <span className="tag badge-neutral">{result.capacityRisk}</span>
-      </div>
-      <div className="result-metrics">
-        <div><strong>{result.passengersDetected}</strong><span>Passagers détectés</span></div>
-        <div><strong>{result.lifejacketsVisible}</strong><span>Gilets visibles</span></div>
-        <div><strong>{result.confidence}%</strong><span>Confiance IA</span></div>
-      </div>
-      <div className={`result-warning ${result.lifejacketsVisible < result.passengersDetected ? "safety-block" : ""}`}><span>!</span><div><strong>Score de risque : {result.riskScore}/100</strong><p>{result.findings?.join(" · ") || "Aucune anomalie textuelle retournée."}</p><p>{result.recommendation}</p>{result.lifejacketsVisible < result.passengersDetected && <p><strong>Départ bloqué :</strong> le ratio de gilets est inférieur à 100 %.</p>}</div></div>
-      {error && <div className="ai-error"><Info size={17} /> {error}</div>}
-      {report ? <div className="report-generated"><FileText size={17} /><div><strong>Rapport généré</strong><p>{report}</p></div></div> : <button className="btn btn-secondary" disabled={isLoading} onClick={onReport}><FileText size={17} /> {isLoading ? "Génération…" : "Générer le rapport officiel"}</button>}
-    </div>
-  );
-}
-
-function VoiceMemo({ onTranscript }: { onTranscript: (value: string) => void }) {
-  const [recording, setRecording] = useState(false);
-  const [status, setStatus] = useState("");
-  const recorder = useRef<MediaRecorder | null>(null);
-  const chunks = useRef<Blob[]>([]);
-  const voiceMutation = trpc.ai.analyzeVoiceAlert.useMutation();
-  const toggle = async () => {
-    if (recording && recorder.current) { recorder.current.stop(); setRecording(false); return; }
-    if (!navigator.mediaDevices?.getUserMedia) { setStatus("Microphone indisponible sur cet appareil."); return; }
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mediaRecorder = new MediaRecorder(stream);
-    chunks.current = [];
-    mediaRecorder.ondataavailable = (event) => { if (event.data.size) chunks.current.push(event.data); };
-    mediaRecorder.onstop = async () => {
-      stream.getTracks().forEach((track) => track.stop());
-      const blob = new Blob(chunks.current, { type: "audio/webm" });
-      const reader = new FileReader();
-      reader.onload = async () => {
-        setStatus("Transcription IA en cours…");
-        try {
-          const result = await voiceMutation.mutateAsync({ audioDataUrl: String(reader.result) });
-          onTranscript(result.transcript);
-          setStatus("Observation ajoutée au rapport.");
-        } catch { setStatus("Transcription indisponible, réessayez."); }
-      };
-      reader.readAsDataURL(blob);
-    };
-    recorder.current = mediaRecorder;
-    mediaRecorder.start();
-    setRecording(true);
-    setStatus("Dictée en cours… cliquez pour arrêter.");
-  };
-  return (
-    <div className="voice-memo">
-      <button type="button" className={recording ? "voice-recording" : "voice-button"} onClick={() => void toggle()} disabled={voiceMutation.isPending}>{recording ? <Square size={15} /> : <Mic size={15} />} {recording ? "Arreter la dictée" : "Dicter une observation"}</button>
-      {status && <span>{status}</span>}
-    </div>
-  );
-}
-
-function Field({ label, icon, value, onChange, readOnly }: { label: string; icon: React.ReactNode; value: string; onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void; readOnly?: boolean }) {
-  return (
-    <label className="field"><span>{label}</span><div className="input-wrap">{icon}<input value={value} onChange={onChange} readOnly={readOnly} /></div></label>
-  );
-}
-
-function PhotoStrip({ photos, onFiles, removePhoto, compact }: { photos: string[]; onFiles: (event: ChangeEvent<HTMLInputElement>) => void; removePhoto: (index: number) => void; compact?: boolean }) {
-  return (
-    <div className={`photo-strip ${compact ? "compact" : ""}`}>
-      {photos.map((src, index) => (
-        <div key={`${src}-${index}`} className="photo-thumb">
-          <img src={src} alt={`Photo ${index + 1}`} />
-          <button onClick={() => removePhoto(index)} aria-label="Supprimer la photo"><span>×</span></button>
-          <b>{index + 1}</b>
-        </div>
-      ))}
-      <label className="add-photo"><Plus size={25} /><span>Ajouter une photo</span><input type="file" accept="image/jpeg,image/png" multiple onChange={onFiles} /></label>
-    </div>
-  );
-}
-
-function SummaryCard({ summary, photos }: { summary: any; photos: string[] }) {
-  return (
-    <aside className="panel summary-card">
-      <div className="section-title"><FileText size={20} /><h2>Recapitulatif</h2></div>
-      <img className="summary-image" src={photos[0] || "/boat-inspection.jpg"} alt="Embarcation sélectionnée" />
-      <SummaryRow icon={<ShipWheel size={17} />} label="Embarcation" value={summary.boat} />
-      <SummaryRow icon={<ShipWheel size={17} />} label="Type" value={summary.type} />
-      <SummaryRow icon={<UserRound size={17} />} label="Capacite" value={`${summary.capacity} passagers`} />
-      <SummaryRow icon={<MapPin size={17} />} label="Lieu" value={summary.place} />
-      <SummaryRow icon={<CalendarDays size={17} />} label="Date et heure" value="29/10/2025 · 14:32" />
-      <SummaryRow icon={<UserRound size={17} />} label="Agent" value={summary.agent} />
-      <div className="info-callout"><Info size={17} /> Les informations peuvent être modifiées à la prochaine étape.</div>
-      <div className="tip-card"><Lightbulb size={19} /><div><strong>Conseil</strong><p>Prenez des photos claires de l'embarcation, de l'intérieur et de la zone de vie.</p></div></div>
-    </aside>
-  );
-}
-
-function SummaryRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="summary-row">{icon}<div><small>{label}</small><strong>{value}</strong></div></div>
-  );
+function F({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12.5, fontWeight: 700, color: "#0a2a5e" }}>{label}{children}</label>;
 }

@@ -115,10 +115,18 @@ export async function deleteVessel(id: number) {
   return { success: true };
 }
 
-export async function listAlerts(limit = 100, offset = 0) {
+export async function listAlerts(limit = 100, offset = 0, vesselId?: number) {
   const db = await getDb();
   if (!db) return [];
+  if (vesselId) return db.select().from(alerts).where(eq(alerts.vesselId, vesselId)).orderBy(desc(alerts.createdAt)).limit(limit).offset(offset);
   return db.select().from(alerts).orderBy(desc(alerts.createdAt)).limit(limit).offset(offset);
+}
+
+export async function getAlert(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select().from(alerts).where(eq(alerts.id, id)).limit(1);
+  return rows[0];
 }
 
 export async function createAlert(input: typeof alerts.$inferInsert) {
@@ -294,9 +302,24 @@ export async function createInspection(input: typeof inspections.$inferInsert) {
   return { id: Number(result[0].insertId) };
 }
 
-export async function listInspections(limit = 100, offset = 0) {
+export async function getVessel(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
+  const rows = await db.select().from(vessels).where(eq(vessels.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function getVesselByRegistration(registrationNumber: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select().from(vessels).where(eq(vessels.registrationNumber, registrationNumber)).limit(1);
+  return rows[0];
+}
+
+export async function listInspections(limit = 100, offset = 0, vesselId?: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  if (vesselId) return db.select().from(inspections).where(eq(inspections.vesselId, vesselId)).orderBy(desc(inspections.inspectionDate)).limit(limit).offset(offset);
   return db.select().from(inspections).orderBy(desc(inspections.inspectionDate)).limit(limit).offset(offset);
 }
 

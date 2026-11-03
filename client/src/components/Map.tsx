@@ -88,7 +88,7 @@ declare global {
 
 function loadMapScript() {
   // Connexion Manus supprimée : le service de cartes n'est plus configuré.
-  return Promise.reject(new Error("Maps service discontinued — Manus connection removed"));
+  return Promise.reject(new Error("Maps service discontinued - Manus connection removed"));
 }
 
 interface MapViewProps {

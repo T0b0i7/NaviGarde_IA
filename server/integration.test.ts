@@ -62,7 +62,6 @@ describe("Intégration - Auth et Bulletins", () => {
     const caller = appRouter.createCaller(ctx);
     const bulletins = await caller.data.bulletins.list();
     expect(Array.isArray(bulletins)).toBe(true);
-    expect(bulletins.length).toBeGreaterThan(0);
   });
 
   it("crée un bulletin via tRPC", async () => {

@@ -1,176 +1,173 @@
 import { useState } from "react";
-import { AlertTriangle, Anchor, ArrowLeft, CalendarDays, Check, ChevronRight, Download, Edit3, FileText, Info, MapPin, MoreHorizontal, Navigation, PauseCircle, Printer, Share2, ShieldCheck, Sparkles, Wrench, X } from "lucide-react";
-import { Link } from "wouter";
+import { AlertTriangle, Anchor, ArrowLeft, Ban, CalendarDays, Copy, Download, Eye, Info, MapPin, Pencil, Printer, Share2, Ship, Users, Wrench } from "lucide-react";
+import { Link, useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import AppShell from "@/components/AppShell";
+import { trpc } from "@/lib/trpc";
+import { useLang } from "@/i18n/LanguageContext";
+import { EmptyState, ErrorState, Skeleton, TableSkeleton } from "@/components/DashboardStates";
 
 export default function VesselDetail() {
-  const [tab, setTab] = useState("general");
-  const [active, setActive] = useState(true);
-  const [shared, setShared] = useState(false);
-  const [alertOpen, setAlertOpen] = useState(true);
+  const { t, locale } = useLang();
+  const [, params] = useRoute("/embarcations/:id");
+  const [, navigate] = useLocation();
+  const id = Number(params?.id ?? 0);
+  const [tab, setTab] = useState("infos");
+  const q = trpc.data.vessels.get.useQuery({ id }, { enabled: id > 0 });
+  const utils = trpc.useUtils();
+  const updateMut = trpc.data.vessels.update.useMutation({ onSuccess: () => { utils.data.vessels.get.invalidate({ id }); toast.success(t("vsd.updated")); }, onError: (e) => toast.error(e.message) });
 
-  const tabs: { key: string; label: string; Icon: React.ComponentType<any> }[] = [
-    { key: "general", label: "Informations générales", Icon: Info },
-    { key: "history", label: "Historique des inspections", Icon: FileText },
-    { key: "photos", label: "Photos & Documents", Icon: Download },
-    { key: "maintenance", label: "Maintenance", Icon: Wrench },
-    { key: "location", label: "Localisation", Icon: MapPin },
-  ];
+  const v = q.data?.vessel;
+  const inspections = q.data?.inspections ?? [];
+  const alerts = q.data?.alerts ?? [];
+  const openAlerts = alerts.filter((a) => a.status !== "resolue" && a.status !== "cloturee");
 
-  const print = () => { window.print(); toast.success("Impression préparée"); };
-  const share = () => { setShared(true); toast.success("Lien de partage copié"); };
+  const me = trpc.auth.me.useQuery(undefined, { retry: false });
+  const canEdit = me.data?.appRole === "admin" || me.data?.appRole === "supervisor";
+  if (q.isLoading) return <AppShell><div style={{ padding: 16, display: "grid", gap: 12 }}><Skeleton style={{ height: 28, width: 200 }} /><Skeleton style={{ height: 260, borderRadius: 12 }} /><TableSkeleton rows={4} cols={5} /></div></AppShell>;
+  if (q.isError) return <AppShell><ErrorState message={q.error.message} onRetry={() => q.refetch()} /></AppShell>;
+  if (!v) return <AppShell><EmptyState title={t("vsd.notFound")} action={<Link href="/embarcations" className="btn-blue" style={{ padding: "0 18px", textDecoration: "none" }}>{t("c.back")}</Link>} /></AppShell>;
+
+  const score = 100 - v.riskScore;
+  const rc = v.riskScore >= 75 ? "high" : v.riskScore >= 40 ? "med" : "low";
+  const riskLabel = rc === "high" ? t("risk.high") : rc === "med" ? t("risk.medium") : t("risk.low");
+  const active = v.status !== "immobilisee";
+  const last = inspections[0];
+  const needleDeg = -90 + Math.min(100, Math.max(0, v.riskScore)) * 1.8;
+  const dl = (d: string | Date) => new Date(d).toLocaleDateString(locale);
 
   return (
     <AppShell>
-      <div className="page-header">
-        <div>
-          <Link href="/embarcations" className="back-link"><ArrowLeft size={16} /> Retour</Link>
-          <h1 className="page-title">Détail d'une embarcation</h1>
-          <p className="page-subtitle">Consultez toutes les informations et l'historique de cette embarcation.</p>
-        </div>
-        <div className="head-actions">
-          <button className="btn btn-secondary" onClick={print}><Printer size={16} /> Imprimer</button>
-          <button className="btn btn-secondary" onClick={() => toast.success("Rapport téléchargé")}><Download size={16} /> Télécharger le rapport</button>
-          <button className="btn btn-secondary" onClick={share}><Share2 size={16} /> {shared ? "Lien copié" : "Partager"}</button>
+      <Link href="/embarcations" className="mock-back"><ArrowLeft size={14} /> {t("vsd.back")}</Link>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
+        <div><h1 className="mock-h1">{t("vsd.title")}</h1><p className="mock-sub">{t("vsd.sub")}</p></div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button className="btn-outline-blue" style={{ width: "auto", padding: "0 16px" }} onClick={() => window.print()}><Printer size={15} /> {t("vsd.print")}</button>
+          <button className="btn-outline-blue" style={{ width: "auto", padding: "0 16px" }} onClick={() => last && navigate(`/inspections/${last.id}`)}><Download size={15} /> {t("vsd.dl")}</button>
+          <button className="btn-outline-blue" style={{ width: "auto", padding: "0 16px" }} onClick={async () => { try { await navigator.clipboard.writeText(window.location.href); toast.success(t("vsd.linkCopied")); } catch {} }}><Share2 size={15} /> {t("vsd.share")}</button>
         </div>
       </div>
+      <div style={{ height: 14 }} />
 
-      <section className="vessel-detail-page">
-        <div className="vessel-hero-detail">
-          <div className="vessel-hero-photo">
-            <img src="/boat-inspection.jpg" alt="Pirogue Océan" />
-            <span className="hero-active"><Check size={14} /> {active ? "Active" : "Inactive"}</span>
-            <span className="hero-more">Voir plus (5)</span>
-          </div>
-          <div className="vessel-identity">
-            <h2>Pirogue Océan</h2>
-            <strong>N°BK-0421 <button onClick={() => toast.success("Immatriculation copiée")}><FileText size={16} /></button></strong>
-            <DetailFact icon={<Anchor size={15} />} label="Type" value="Pirogue" />
-            <DetailFact icon={<Navigation size={15} />} label="Longueur" value="8,50 m" />
-            <DetailFact icon={<Navigation size={15} />} label="Largeur" value="2,50 m" />
-            <DetailFact icon={<ShieldCheck size={15} />} label="Capacité" value="12 passagers" />
-            <DetailFact icon={<Info size={15} />} label="Propriétaire" value="Koffi DOSSA" />
-            <DetailFact icon={<MapPin size={15} />} label="Port d'attache" value="Porto-Novo" />
-          </div>
-          <div className="vessel-gauge-card">
-            <div className="vessel-gauge">
-              <h3>Niveau de risque</h3>
-              <div className="gauge-arc"><span><ShieldCheck size={28} /></span></div>
-              <strong>Faible</strong>
-              <em>Dernière évaluation :<br />29/10/2025</em>
+      <div className="mock-page" style={{ gridTemplateColumns: "minmax(0,1fr) 300px" }}>
+        <div className="mock-main">
+          <div className="mock-card"><div className="mock-card-b" style={{ display: "grid", gridTemplateColumns: "250px 1fr 170px 170px", gap: 16 }}>
+            <div style={{ position: "relative" }}>
+              <img src="/boat-inspection.jpg" alt="" style={{ width: "100%", height: 215, objectFit: "cover", borderRadius: 12 }} />
+              <span className={`bdg ${active ? "bdg-green" : "bdg-gray"}`} style={{ position: "absolute", top: 8, left: 8 }}>{active ? t("c.active") : t("c.inactive")}</span>
+              <span style={{ position: "absolute", bottom: 8, left: 8, background: "rgba(2,20,40,0.75)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 8 }}>+ ({inspections.length})</span>
             </div>
-            <div className="vessel-gauge">
-              <h3>Score de conformité</h3>
-              <div className="gauge-arc"><span>92%</span></div>
-              <strong>Très bon</strong>
-              <em>Dernière évaluation :<br />29/10/2025</em>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 24, color: "#0a2a5e" }}>{v.name ?? "-"}</h2>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}><strong style={{ color: "#0d7fdd", fontSize: 17 }}>N°{v.registrationNumber}</strong><button className="icon-sq" style={{ width: 26, height: 26 }} onClick={async () => { try { await navigator.clipboard.writeText(v.registrationNumber); toast.success(t("vsd.regCopied")); } catch {} }}><Copy size={13} /></button></div>
+              <div style={{ marginTop: 12, display: "grid", gap: 7, fontSize: 13 }}>
+                <div style={{ display: "flex", gap: 8 }}><Anchor size={15} color="#0d7fdd" /><span style={{ color: "#5b7a96", width: 110 }}>{t("vsd.type")} :</span><strong>{v.type}</strong></div>
+                <div style={{ display: "flex", gap: 8 }}><Ship size={15} color="#0d7fdd" /><span style={{ color: "#5b7a96", width: 110 }}>{t("vsd.length")} :</span><strong>{v.lengthMeters ? `${v.lengthMeters} m` : "-"}</strong></div>
+                <div style={{ display: "flex", gap: 8 }}><Ship size={15} color="#0d7fdd" /><span style={{ color: "#5b7a96", width: 110 }}>{t("vsd.width")} :</span><strong>{v.widthMeters ? `${v.widthMeters} m` : "-"}</strong></div>
+                <div style={{ display: "flex", gap: 8 }}><Users size={15} color="#0d7fdd" /><span style={{ color: "#5b7a96", width: 110 }}>{t("vsd.capacity")} :</span><strong>{v.capacity} {t("vsd.pax")}</strong></div>
+                <div style={{ display: "flex", gap: 8 }}><Users size={15} color="#0d7fdd" /><span style={{ color: "#5b7a96", width: 110 }}>{t("vsd.owner")} :</span><strong>{v.ownerName}</strong></div>
+                <div style={{ display: "flex", gap: 8 }}><MapPin size={15} color="#0d7fdd" /><span style={{ color: "#5b7a96", width: 110 }}>{t("vsd.port")} :</span><strong>{v.place}</strong></div>
+              </div>
             </div>
+            <div style={{ textAlign: "center", borderLeft: "1px solid #eef3f8", paddingLeft: 12 }}>
+              <strong style={{ fontSize: 13 }}>{t("vsd.riskLvl")}</strong>
+              <div className="gauge-semi" style={{ marginTop: 10 }}><div className="gauge-semi-bg" /><div className="gauge-needle" style={{ transform: `translateX(-50%) rotate(${needleDeg}deg)` }} /></div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: rc === "low" ? "#16a34a" : rc === "med" ? "#d97706" : "#dc2626" }}>{riskLabel}</div>
+              <div style={{ fontSize: 11, color: "#7b93a8", marginTop: 6 }}>{t("vsd.lastEval")} :<br />{dl(v.updatedAt)}</div>
+            </div>
+            <div style={{ textAlign: "center", borderLeft: "1px solid #eef3f8", paddingLeft: 12 }}>
+              <strong style={{ fontSize: 13 }}>{t("vsd.confScore")}</strong>
+              <div style={{ width: 120, height: 120, borderRadius: "50%", margin: "10px auto", background: `conic-gradient(${score >= 80 ? "#16a34a" : score >= 60 ? "#f59e0b" : "#ef4444"} ${score}%, #eef2f6 ${score}%)`, display: "grid", placeItems: "center" }}><div style={{ width: 92, height: 92, borderRadius: "50%", background: "#fff", display: "grid", placeItems: "center", fontWeight: 800, fontSize: 24 }}>{score}%</div></div>
+              <span className={`bdg ${score >= 80 ? "bdg-green" : "bdg-yellow"}`}>{score >= 80 ? t("vsd.veryGood") : score >= 60 ? t("vsd.watch") : t("vsd.critical")}</span>
+            </div>
+          </div></div>
+
+          <div className="mock-tabs">
+            <button className={tab === "infos" ? "on" : ""} onClick={() => setTab("infos")}><Info size={14} /> {t("vsd.tabInfo")}</button>
+            <button className={tab === "hist" ? "on" : ""} onClick={() => setTab("hist")}><CalendarDays size={14} /> {t("vsd.tabHist")}</button>
+            <button className={tab === "photos" ? "on" : ""} onClick={() => setTab("photos")}><Eye size={14} /> {t("vsd.tabPhotos")}</button>
+            <button className={tab === "maint" ? "on" : ""} onClick={() => setTab("maint")}><Wrench size={14} /> {t("vsd.tabMaint")}</button>
+            <button className={tab === "loc" ? "on" : ""} onClick={() => setTab("loc")}><MapPin size={14} /> {t("vsd.tabLoc")}</button>
           </div>
+
+          {tab === "infos" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.2fr", gap: 12 }}>
+              <div className="mock-card"><div className="mock-card-h"><h3><Info size={15} /> {t("vsd.idCard")}</h3></div><div className="mock-card-b" style={{ display: "grid", gap: 7, fontSize: 12.5 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#5b7a96" }}>{t("vsd.vname")} :</span><strong>{v.name ?? "-"}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#5b7a96" }}>{t("vsd.reg")} :</span><strong>{v.registrationNumber}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#5b7a96" }}>{t("vsd.type")} :</span><strong>{v.type}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#5b7a96" }}>{t("vsd.owner")} :</span><strong>{v.ownerName}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#5b7a96" }}>{t("vsd.contact")} :</span><strong>{v.ownerPhone ?? "-"}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#5b7a96" }}>{t("vsd.port")} :</span><strong>{v.place}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ color: "#5b7a96" }}>{t("vsd.status")} :</span><span className={`bdg ${active ? "bdg-green" : "bdg-gray"}`}>{active ? t("c.active") : t("c.inactive")}</span></div>
+              </div></div>
+              <div className="mock-card"><div className="mock-card-h"><h3><Wrench size={15} /> {t("vsd.tech")}</h3></div><div className="mock-card-b" style={{ display: "grid", gap: 7, fontSize: 12.5 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#5b7a96" }}>{t("vsd.length")} :</span><strong>{v.lengthMeters ? `${v.lengthMeters} m` : "-"}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#5b7a96" }}>{t("vsd.width")} :</span><strong>{v.widthMeters ? `${v.widthMeters} m` : "-"}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#5b7a96" }}>{t("vsd.draft")} :</span><strong>{v.draftMeters ? `${v.draftMeters} m` : "-"}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#5b7a96" }}>{t("vsd.capacity")} :</span><strong>{v.capacity} {t("vsd.pax")}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#5b7a96" }}>{t("vsd.engine")} :</span><strong>{v.enginePower ? `${v.enginePower} HP` : "-"}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#5b7a96" }}>{t("vsd.fuel")} :</span><strong>{v.fuelType ?? "-"}</strong></div>
+              </div></div>
+              <div className="mock-card"><div className="mock-card-h"><h3><CalendarDays size={15} /> {t("vsd.lastInsp")}</h3>{last && <span className={`bdg ${last.riskScore < 25 ? "bdg-green" : "bdg-yellow"}`}>{last.riskScore < 25 ? t("conf.compliant") : t("insp.stVerify")}</span>}</div><div className="mock-card-b" style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 12 }}>
+                <img src="/boat-inspection.jpg" alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 10 }} />
+                <div style={{ fontSize: 12.5, display: "grid", gap: 6 }}>
+                  {!last ? <span style={{ color: "#7b93a8" }}>{t("vsd.noInsp")}</span> : (<>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#5b7a96" }}>{t("vsd.date")} :</span><strong>{dl(last.inspectionDate)}</strong></div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#5b7a96" }}>{t("vsd.score")} :</span><strong>{100 - last.riskScore}%</strong></div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#5b7a96" }}>{t("vsd.agent")} :</span><strong>{last.agentId ? `Agent #${last.agentId}` : "-"}</strong></div>
+                    <button className="btn-outline-blue" style={{ height: 36, fontSize: 12 }} onClick={() => navigate(`/inspections/${last.id}`)}>{t("vsd.openReport")} →</button>
+                  </>)}
+                </div>
+              </div></div>
+            </div>
+          )}
+
+          {(tab === "infos" || tab === "hist") && (
+            <div style={{ display: "grid", gridTemplateColumns: tab === "hist" ? "1fr" : "1.4fr 0.9fr", gap: 12 }}>
+              <div className="mock-card"><div className="mock-card-h"><h3><CalendarDays size={15} /> {t("vsd.histTitle")}</h3>{tab !== "hist" && <button style={{ color: "#0d7fdd", fontSize: 12, fontWeight: 700 }} onClick={() => setTab("hist")}>{t("vsd.seeAllHist")} →</button>}</div>
+                <div style={{ padding: "0 12px 12px" }}>{inspections.length === 0 ? <EmptyState title={t("vsd.noInsp")} hint={canEdit ? t("vsd.noInspHint") : undefined} action={canEdit ? <button className="btn-blue" style={{ padding: "0 16px" }} onClick={() => navigate("/inspections/new")}><CalendarDays size={14} /> {t("vsd.plan")}</button> : undefined} /> : (
+                <table className="mock-table"><thead><tr><th>{t("c.date")}</th><th>{t("c.type")}</th><th>{t("vsd.colResult")}</th><th>{t("vsd.score")}</th><th>{t("vsd.agent")}</th><th>{t("c.actions")}</th></tr></thead><tbody>
+                  {inspections.slice(0, tab === "hist" ? 20 : 3).map((i) => (
+                    <tr key={i.id}><td style={{ fontSize: 12 }}>{dl(i.inspectionDate)}</td><td style={{ fontSize: 12 }}>-</td>
+                      <td><span className={`bdg ${i.riskScore < 25 ? "bdg-green" : "bdg-yellow"}`}>{i.riskScore < 25 ? t("conf.compliant") : t("insp.stVerify")}</span></td>
+                      <td><strong>{100 - i.riskScore}%</strong></td><td style={{ fontSize: 12 }}>{i.agentId ? `Agent #${i.agentId}` : "-"}</td>
+                      <td><button className="icon-sq" onClick={() => navigate(`/inspections/${i.id}`)}><Eye size={14} /></button></td></tr>
+                  ))}
+                </tbody></table>)}</div>
+              </div>
+              <div className="mock-card"><div className="mock-card-h"><h3>⚡ {t("vsd.quick")}</h3></div><div className="mock-card-b" style={{ display: "grid", gap: 8 }}>
+                <button className="btn-blue" style={{ height: 42, fontSize: 12.5 }} onClick={() => navigate("/inspections/new")}><CalendarDays size={14} /> {t("vsd.plan")}</button>
+                {canEdit && <button className="btn-outline-blue" onClick={() => toast.info(t("vsd.updateHint"))}><Pencil size={14} /> {t("vsd.update")}</button>}
+                {canEdit && <button className="btn-outline-blue" style={{ borderColor: "#fca5a5", color: "#b91c1c" }} disabled={updateMut.isPending} onClick={() => updateMut.mutate({ id: v.id, patch: { status: active ? "immobilisee" : "conforme" } })}><Ban size={14} /> {active ? t("vsd.disable") : t("vsd.enable")}</button>}
+                {last?.recommendation && <div style={{ background: "#eef6fd", borderRadius: 10, padding: 10, fontSize: 11.5, color: "#0a2a5e", lineHeight: 1.5 }}><strong>IA:</strong> {last.recommendation.slice(0, 140)}</div>}
+              </div></div>
+            </div>
+          )}
+          {tab === "photos" && <div className="mock-card"><div className="mock-card-b"><EmptyState title={t("vsd.photosHint", { n: inspections.length })} /></div></div>}
+          {tab === "maint" && <div className="mock-card"><div className="mock-card-b"><EmptyState title={t("vsd.maintHint")} /></div></div>}
+          {tab === "loc" && <div className="mock-card"><div className="mock-card-b"><strong>{v.place}</strong><div style={{ fontSize: 12, color: "#7b93a8" }}>{v.latitude && v.longitude ? `${v.latitude} N, ${v.longitude} E` : t("vsd.gpsMissing")}</div></div></div>}
         </div>
 
-        <div className="vessel-tabs">
-          {tabs.map((t) => (
-            <button key={t.key} className={`tab-btn ${tab === t.key ? "tab-active" : ""}`} onClick={() => setTab(t.key)}>
-              <t.Icon size={16} /> {t.label}
-            </button>
-          ))}
+        <div className="mock-side">
+          <div className="mock-detail" style={{ borderColor: openAlerts.length ? "#fecaca" : "#e3ecf4", background: openAlerts.length ? "#fff7f7" : "#fff" }}>
+            <h3><AlertTriangle size={15} color="#dc2626" /> {t("vsd.alertsOpen")} <span className="bdg bdg-red" style={{ marginLeft: "auto" }}>{openAlerts.length}</span></h3>
+            {openAlerts.length === 0 ? <div style={{ fontSize: 12.5, color: "#7b93a8" }}>{t("vsd.noAlerts")}</div> : openAlerts.slice(0, 3).map((a) => (
+              <div key={a.id} style={{ borderLeft: "3px solid #f59e0b", paddingLeft: 10 }}>
+                <strong style={{ fontSize: 13 }}>{a.title}</strong>
+                <div style={{ fontSize: 12, color: "#5b7a96" }}>{t("insp.risk")} : <span className="bdg bdg-yellow">{a.urgency}</span></div>
+                <div style={{ fontSize: 11.5, color: "#7b93a8" }}>{t("vsd.seenOn")} : {dl(a.createdAt)}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mock-detail">
+            <h3><MapPin size={15} /> {t("vsd.curLoc")}</h3>
+            <div style={{ background: "#eef5fb", borderRadius: 12, height: 130, display: "grid", placeItems: "center", color: "#0d7fdd" }}><MapPin size={32} /></div>
+            <div style={{ fontSize: 13 }}><strong>{v.place}, Benin</strong><div style={{ fontSize: 11.5, color: "#7b93a8" }}>{v.latitude && v.longitude ? `${v.latitude} N, ${v.longitude} E` : t("vsd.gpsMissing")}</div></div>
+            <button className="btn-outline-blue" onClick={() => setTab("loc")}>{t("vsd.seeMap")} →</button>
+          </div>
         </div>
-
-        {tab === "general" && (
-          <div className="card">
-            <div className="card-body">
-              <div className="current-alerts">
-                <div className="alert-title"><AlertTriangle size={17} /> Alertes en cours <b>1</b></div>
-                {alertOpen && (
-                  <button className="btn btn-secondary vessel-alert" onClick={() => setAlertOpen(false)}>
-                    <strong>Gilet de sauvetage manquant</strong>
-                    <span style={{ fontSize: "11px", color: "var(--ng-text-muted)" }}>Pièce manquante à bord - action requise avant départ</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {tab === "history" && (
-          <div className="card">
-            <div className="card-body" style={{ paddingTop: 0, overflowX: "auto" }}>
-              <table className="table">
-                <thead>
-                  <tr><th>Date</th><th>Type</th><th>Résultat</th><th>Score</th><th>Agent</th><th>Action</th></tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>29/10/2025</td><td>Inspection</td><td><span className="badge badge-success"><Check size={12} /> Conforme</span></td><td>88/100</td><td>Koffi DOSSA</td><td><button className="icon-btn"><EyeIcon /></button></td>
-                  </tr>
-                  <tr>
-                    <td>15/09/2025</td><td>Inspection</td><td><span className="badge badge-warning"><AlertTriangle size={12} /> À vérifier</span></td><td>62/100</td><td>Thomas ADJE</td><td><button className="icon-btn"><EyeIcon /></button></td>
-                  </tr>
-                  <tr>
-                    <td>03/08/2025</td><td>Inspection</td><td><span className="badge badge-success"><Check size={12} /> Conforme</span></td><td>91/100</td><td>Adelaide HOUND</td><td><button className="icon-btn"><EyeIcon /></button></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {tab === "photos" && (
-          <div className="card">
-            <div className="card-body">
-              <div className="photo-grid">
-                <div className="photo-item"><img src="/boat-inspection.jpg" alt="Photo 1" /><span>29/10/2025</span></div>
-                <div className="photo-item"><img src="/boat-inspection.jpg" alt="Photo 2" /><span>29/10/2025</span></div>
-                <div className="photo-item"><img src="/boat-inspection.jpg" alt="Photo 3" /><span>15/09/2025</span></div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {tab === "maintenance" && (
-          <div className="card">
-            <div className="card-body">
-              <div className="maintenance-list">
-                <div className="maintenance-item">
-                  <strong>Vidange moteur</strong><span>29/10/2024 · À faire dans 6 mois</span>
-                </div>
-                <div className="maintenance-item">
-                  <strong>Vérification coque</strong><span>15/09/2025 · Effectuée</span>
-                </div>
-                <div className="maintenance-item">
-                  <strong>Révision électronique</strong><span>03/08/2025 · À faire dans 3 mois</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {tab === "location" && (
-          <div className="card">
-            <div className="card-body">
-              <div className="map-placeholder">
-                <div className="map-icon"><MapPin size={40} /></div>
-                <p>Carte interactive de la zone de navigation - Porto-Novo</p>
-              </div>
-            </div>
-          </div>
-        )}
-      </section>
+      </div>
     </AppShell>
   );
-}
-
-function DetailFact({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="vessel-detail-fact">
-      {icon}
-      <span>{label} :</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-function EyeIcon() {
-  return <span className="eye-simple">◉</span>;
 }

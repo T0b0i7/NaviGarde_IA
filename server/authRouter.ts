@@ -25,7 +25,7 @@ export const authRouter = router({
       throw new TRPCError({ code: "UNAUTHORIZED", message: "Adresse e-mail ou mot de passe incorrect." });
     }
     clearLoginFailures(key);
-    await startLocalSession(user.id, ctx.res);
+    await startLocalSession(user.id, ctx.res, ctx.req);
     await addAuditEvent({ userId: user.id, action: "auth.login", entityType: "session", metadata: JSON.stringify({ method: "local" }) });
     return { success: true, user: { id: user.id, name: user.name, email: user.email, appRole: user.appRole } };
   }),

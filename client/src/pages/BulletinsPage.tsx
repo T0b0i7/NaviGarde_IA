@@ -1,403 +1,181 @@
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { Archive, ArrowLeft, BadgeCheck, Bell, Check, Clock, Download, Eye, FileText, MapPin, MoreVertical, Newspaper, Plus, Search, Share2, TriangleAlert, X } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
-import {
-  AlertTriangle, Archive, ChevronLeft, ChevronRight, Clock, Copy, Download, FileText, Filter, File, MapPin, Plus, Search, Share2, ShieldAlert, X,
-} from "lucide-react";
+import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import AppShell from "@/components/AppShell";
 import { trpc } from "@/lib/trpc";
-import "./bullets.css";
+import { useLang } from "@/i18n/LanguageContext";
+import { ChartSkeleton, EmptyState, ErrorState, KpiSkeleton, TableSkeleton } from "@/components/DashboardStates";
 
-type BulletinsImportance = "information" | "important" | "urgent" | "critique";
-type BulletinsStatus = "brouillon" | "publie" | "archive";
-
-type MaritimeBulletin = {
-  id: number;
-  title: string;
-  category: string;
-  maritimeZone: string;
-  importance: BulletinsImportance;
-  content: string;
-  attachments: string | null;
-  status: BulletinsStatus;
-  createdBy: number | null;
-  validatedBy: number | null;
-  createdAt: Date | string;
-  updatedAt: Date | string;
-  publishedAt: Date | string | null;
-};
-
-function KpiCard({ icon: Icon, label, value, delta }: { icon: any; label: string; value: React.ReactNode; delta?: string }) {
-  return (
-    <div className="kpi-card">
-      <div className="kpi-icon">{<Icon size={20} />}</div>
-      <div className="kpi-body">
-        <p className="kpi-label">{label}</p>
-        <div className="kpi-value">{value}</div>
-        {delta && <span className="kpi-delta">{delta}</span>}
-      </div>
-    </div>
-  );
-}
-
-function ImportanceBadge({ importance }: { importance: BulletinsImportance }) {
-  const variants: Record<BulletinsImportance, { color: string; bg: string; label: string }> = {
-    information: { color: "text-blue-700", bg: "bg-blue-100", label: "Info" },
-    important: { color: "text-orange-700", bg: "bg-orange-100", label: "Avertissement" },
-    urgent: { color: "text-red-700", bg: "bg-red-100", label: "Alerte" },
-    critique: { color: "text-red-900", bg: "bg-red-50", label: "Critique" },
-  };
-  const v = variants[importance];
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${v.color} ${v.bg}`}>
-      {v.label}
-    </span>
-  );
-}
-
-function StatusBadge({ status }: { status: BulletinsStatus }) {
-  const variants: Record<BulletinsStatus, { color: string; bg: string; label: string }> = {
-    brouillon: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Brouillon" },
-    publie: { color: "text-emerald-700", bg: "bg-emerald-100", label: "Publié" },
-    archive: { color: "text-slate-500", bg: "bg-slate-100", label: "Archivé" },
-  };
-  const v = variants[status];
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${v.color} ${v.bg}`}>
-      {v.label}
-    </span>
-  );
-}
-
-function SelectPill({ label, value, options, onChange, onReset }: { label: string; value: string; options: string[]; onChange: (v: string) => void; onReset: () => void }) {
-  return (
-    <div className="filter-pill">
-      <button className="pill-trigger" onClick={onReset}>{label}</button>
-      <select className="pill-select" value={value} onChange={(e) => onChange(e.target.value)}>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </div>
-  );
-}
+type Imp = "information" | "important" | "urgent" | "critique";
+const ALL = "__ALL__";
+const impBadge = (i: Imp) => i === "information" ? "bdg-cyan" : i === "important" ? "bdg-yellow" : "bdg-red";
+const lvlBadge = (i: Imp) => i === "information" ? "bdg-green" : i === "important" ? "bdg-yellow" : "bdg-red";
 
 export function BulletinsPage() {
+  const { t, locale } = useLang();
   const utils = trpc.useUtils();
-  const query = trpc.data.bulletins.list.useQuery(undefined, { refetchOnWindowFocus: false });
-  const create = trpc.data.bulletins.create.useMutation({
-    onSuccess: () => {
-      utils.data.bulletins.list.invalidate();
-      toast.success("Bulletin enregistré");
-    },
-    onError: (err: unknown) => toast.error("Échec de création : " + (err as Error)?.message),
-  });
-  const update = trpc.data.bulletins.update.useMutation({
-    onSuccess: () => {
-      utils.data.bulletins.list.invalidate();
-      toast.success("Bulletin mis à jour");
-    },
-    onError: (err: unknown) => toast.error("Échec de mise à jour : " + (err as Error)?.message),
-  });
+  const me = trpc.auth.me.useQuery(undefined, { retry: false });
+  const isObserver = me.data?.appRole === "observer";
+  const q = trpc.data.bulletins.list.useQuery(undefined, { refetchOnWindowFocus: false });
+  const create = trpc.data.bulletins.create.useMutation({ onSuccess: () => { utils.data.bulletins.list.invalidate(); setShowCreate(false); toast.success(t("bu.saved")); }, onError: (e) => toast.error(e.message) });
+  const update = trpc.data.bulletins.update.useMutation({ onSuccess: () => { utils.data.bulletins.list.invalidate(); toast.success(t("bu.updated")); }, onError: (e) => toast.error(e.message) });
+  const impLabel = (i: Imp) => i === "information" ? t("lvl.info") : i === "important" ? t("lvl.warning") : t("lvl.alert");
+  const lvlLabel = (i: Imp) => i === "information" ? t("risk.low") : i === "important" ? t("risk.medium") : t("risk.high");
 
-  const [filter, setFilter] = useState("");
-  const [typeFilter, setTypeFilter] = useState("Tous les types");
-  const [zoneFilter, setZoneFilter] = useState("Toutes les zones");
-  const [levelFilter, setLevelFilter] = useState("Tous les niveaux");
-  const [periodFilter, setPeriodFilter] = useState("Période");
-  const [openCreate, setOpenCreate] = useState(false);
-  const [createTitle, setCreateTitle] = useState("");
-  const [createContent, setCreateContent] = useState("");
-  const [createZone, setCreateZone] = useState("");
-  const [createImportance, setCreateImportance] = useState<BulletinsImportance>("information");
-  const [selected, setSelected] = useState<MaritimeBulletin | null>(null);
+  const [search, setSearch] = useState("");
+  const [typeF, setTypeF] = useState(ALL);
+  const [zoneF, setZoneF] = useState(ALL);
+  const [lvlF, setLvlF] = useState(ALL);
   const [page, setPage] = useState(1);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [cTitle, setCTitle] = useState(""); const [cZone, setCZone] = useState("Gulf of Guinea"); const [cCat, setCCat] = useState("Weather"); const [cImp, setCImp] = useState<Imp>("information"); const [cContent, setCContent] = useState("");
+  const PAGE = 7;
+  const dt = (d: string | Date) => new Date(d).toLocaleString(locale);
 
-  const raw = (query.data ?? []) as unknown as MaritimeBulletin[];
-  const zones = useMemo(() => [...new Set(raw.map((b) => b.maritimeZone))], [raw]);
-  const types = useMemo(() => [...new Set(raw.map((b) => b.category))], [raw]);
+  const rows = useMemo(() => {
+    return ((q.data ?? []) as Array<{ id: number; title: string; category: string; maritimeZone: string; importance: Imp; content: string; attachments: string | null; status: "brouillon" | "publie" | "archive"; createdAt: string | Date }>)
+      .filter((b) => (!search || `${b.title} ${b.content} ${b.maritimeZone}`.toLowerCase().includes(search.toLowerCase())) && (typeF === ALL || b.category === typeF) && (zoneF === ALL || b.maritimeZone === zoneF) && (lvlF === ALL || b.importance === lvlF))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [q.data, search, typeF, zoneF, lvlF]);
 
-  const visible = useMemo(() => {
-    const now = new Date();
-    return raw.filter((b) => {
-      const text = `${b.title} ${b.content} ${b.maritimeZone} ${b.category}`.toLowerCase();
-      if (filter && !text.includes(filter.toLowerCase())) return false;
-      if (typeFilter !== "Tous les types" && b.category !== typeFilter) return false;
-      if (zoneFilter !== "Toutes les zones" && b.maritimeZone !== zoneFilter) return false;
-      if (levelFilter !== "Tous les niveaux" && b.importance !== levelFilter) return false;
-      if (periodFilter && periodFilter !== "Période") {
-        const d = new Date(b.createdAt);
-        const days = periodFilter === "24h" ? 1 : periodFilter === "7j" ? 7 : periodFilter === "30j" ? 30 : 0;
-        if (days && now.getTime() - d.getTime() > days * 24 * 60 * 60 * 1000) return false;
-      }
-      return true;
-    });
-  }, [raw, filter, typeFilter, zoneFilter, levelFilter, periodFilter]);
+  const kpis = useMemo(() => { const r = (q.data ?? []) as Array<{ status: string }>; return { total: r.length, encours: r.filter((x) => x.status === "brouillon").length, publies: r.filter((x) => x.status === "publie").length, archives: r.filter((x) => x.status === "archive").length }; }, [q.data]);
+  const types = useMemo(() => [...new Set(((q.data ?? []) as Array<{ category: string }>).map((b) => b.category))], [q.data]);
+  const zones = useMemo(() => [...new Set(((q.data ?? []) as Array<{ maritimeZone: string }>).map((b) => b.maritimeZone))], [q.data]);
 
-  const PAGE_SIZE = 7;
-  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
-  const safePage = Math.min(Math.max(page, 1), totalPages);
-  if (safePage !== page) setPage(safePage);
-  const paged = visible.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const barData = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const b of rows) map.set(b.category, (map.get(b.category) ?? 0) + 1);
+    return [...map.entries()].slice(0, 8).map(([name, value]) => ({ name, value }));
+  }, [rows]);
+  const donut = useMemo(() => {
+    const total = Math.max(1, rows.length);
+    const cnt = (k: Imp) => rows.filter((b) => b.importance === k).length;
+    return [
+      { key: "information" as Imp, value: cnt("information"), color: "#16a34a", name: t("lvl.info") },
+      { key: "important" as Imp, value: cnt("important"), color: "#f59e0b", name: t("lvl.warning") },
+      { key: "urgent" as Imp, value: cnt("urgent"), color: "#f97316", name: t("lvl.alert") },
+      { key: "critique" as Imp, value: cnt("critique"), color: "#ef4444", name: t("risk.critical") },
+    ].filter((d) => d.value > 0).map((d) => ({ ...d, pct: Math.round((d.value / total) * 100) }));
+  }, [rows, t]);
 
-  const total = raw.length;
-  const enCours = raw.filter((b) => b.status === "brouillon").length;
-  const publies = raw.filter((b) => b.status === "publie").length;
-  const archives = raw.filter((b) => b.status === "archive").length;
-
-  const handleCreate = () => {
-    if (!createTitle || !createContent || !createZone) {
-      toast.error("Titre, message et zone maritime sont requis.");
-      return;
-    }
-    create.mutate({
-      title: createTitle,
-      category: typeFilter === "Tous les types" ? "Avis" : typeFilter,
-      maritimeZone: createZone,
-      importance: createImportance,
-      content: createContent,
-      attachments: [],
-    });
-    setOpenCreate(false);
-    setCreateTitle("");
-    setCreateContent("");
-    setCreateZone("");
-    setCreateImportance("information");
-  };
-
-  const handlePublish = (id: number) => {
-    update.mutate({ id, patch: { status: "publie" } });
-    setSelected(null);
-  };
-
-  const handleArchive = (id: number) => {
-    update.mutate({ id, patch: { status: "archive" } });
-    setSelected(null);
-  };
-
-  const handleDownload = (url: string) => {
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    toast.success("Téléchargement lancé");
-  };
-
-  const handleShare = () => {
-    if (!selected) return;
-    if (navigator.share) {
-      navigator.share({ title: selected.title, text: selected.content, url: window.location.href }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(`${selected.title} — ${selected.content}`).then(() => toast.success("Lien copié"));
-    }
-  };
-
-  const importanceLabel: Record<BulletinsImportance, string> = {
-    information: "Information",
-    important: "Important",
-    urgent: "Urgent",
-    critique: "Critique",
-  };
-
-  const fmtDate = (iso: Date | string) =>
-    new Date(iso).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE));
+  const safePage = Math.min(page, totalPages);
+  const paged = rows.slice((safePage - 1) * PAGE, safePage * PAGE);
+  const selected = rows.find((b) => b.id === selectedId) ?? paged[0] ?? null;
 
   return (
     <AppShell>
-      <div className="bullets-shell">
-        {/* Header */}
-        <div className="bullets-head">
-          <Link href="/" className="back"><ChevronLeft size={16} /> Retour</Link>
-          <div className="bullets-title">
-            <h1>Bulletins maritimes</h1>
-            <p>Consultez les derniers bulletins et restez informé des alertes en mer.</p>
-          </div>
-          <button className="new-bulletin" onClick={() => setOpenCreate(true)}>
-            <Plus size={16} /> Nouveau bulletin
-          </button>
-        </div>
+      <Link href="/" className="mock-back"><ArrowLeft size={14} /> {t("c.back")}</Link>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+        <div><h1 className="mock-h1">{t("bu.title")}</h1><p className="mock-sub">{t("bu.sub")}</p></div>
+        {!isObserver && <button className="btn-blue" style={{ padding: "0 18px" }} onClick={() => setShowCreate(true)}><Plus size={16} /> {t("bu.new")}</button>}
+      </div>
+      <div style={{ height: 14 }} />
 
-        {/* KPI cards */}
-        <div className="kpi-row">
-          <KpiCard icon={FileText} label="Total des bulletins" value={total} delta="+12%" />
-          <KpiCard icon={AlertTriangle} label="En cours" value={enCours} />
-          <KpiCard icon={ShieldAlert} label="Publiés" value={publies} />
-          <KpiCard icon={Archive} label="Archivés" value={archives} />
-        </div>
-
-        {/* Search + filters */}
-        <div className="bullets-toolbar">
-          <div className="toolbar-search wide">
-            <Search size={16} />
-            <input
-              placeholder="Rechercher un bulletin, une zone maritime, un mot-clé..."
-              value={filter}
-              onChange={(e) => { setFilter(e.target.value); setPage(1); }}
-            />
+      {q.isError ? <div className="mock-card"><ErrorState message={q.error.message ?? t("c.dbDown")} onRetry={() => q.refetch()} /></div> : (
+      <div className="mock-page" style={{ gridTemplateColumns: "minmax(0,1fr) 340px" }}>
+        <div className="mock-main">
+          <div className="mock-kpis">
+            {q.isLoading ? <><KpiSkeleton /><KpiSkeleton /><KpiSkeleton /><KpiSkeleton /></> : (
+              <>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#2563eb" }}><Newspaper size={22} /></div><div><small>{t("bu.kTotal")}</small><strong>{kpis.total}</strong></div></div>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#f97316" }}>!</div><div><small>{t("bu.kDraft")}</small><strong>{kpis.encours}</strong></div></div>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#16a34a" }}><Check size={22} /></div><div><small>{t("bu.kPub")}</small><strong>{kpis.publies}</strong></div></div>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#7c3aed" }}><Archive size={22} /></div><div><small>{t("bu.kArch")}</small><strong>{kpis.archives}</strong></div></div>
+              </>
+            )}
           </div>
-          <div className="filter-chips">
-            <SelectPill label="Tous les types" value={typeFilter} options={types} onChange={(v) => { setTypeFilter(v); setPage(1); }} onReset={() => { setTypeFilter("Tous les types"); setPage(1); }} />
-            <SelectPill label="Toutes les zones" value={zoneFilter} options={zones} onChange={(v) => { setZoneFilter(v); setPage(1); }} onReset={() => { setZoneFilter("Toutes les zones"); setPage(1); }} />
-            <SelectPill
-              label="Tous les niveaux"
-              value={levelFilter}
-              options={["Tous les niveaux", "Information", "Important", "Urgent", "Critique"]}
-              onChange={(v) => { setLevelFilter(v as BulletinsImportance); setPage(1); }}
-              onReset={() => { setLevelFilter("Tous les niveaux"); setPage(1); }}
-            />
-            <SelectPill label="Période" value={periodFilter} options={["Période", "24h", "7j", "30j"]} onChange={(v) => { setPeriodFilter(v); setPage(1); }} onReset={() => { setPeriodFilter("Période"); setPage(1); }} />
-            <button className="filter-btn" onClick={() => { setFilter(""); setTypeFilter("Tous les types"); setZoneFilter("Toutes les zones"); setLevelFilter("Tous les niveaux"); setPeriodFilter("Période"); setPage(1); }}>
-              <Filter size={14} /> Filtres
-            </button>
-          </div>
-        </div>
 
-        {/* Table */}
-        <div className="table-wrap">
-          <table className="bullets-table">
-            <thead>
-              <tr>
-                <th>N°</th>
-                <th>Titre</th>
-                <th>Type</th>
-                <th>Zone concernée</th>
-                <th>Niveau</th>
-                <th>Date de publication</th>
-                <th>Statut</th>
-                <th className="text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map((b) => {
-                const num = (safePage - 1) * PAGE_SIZE + paged.indexOf(b) + 1;
-                return (
-                  <tr key={b.id} className="bulletin-row" onClick={() => setSelected(b)}>
-                    <td className="num">BM-{new Date(b.createdAt).getFullYear()}-{String(b.id).padStart(3, "0")}</td>
-                    <td>
-                      <div className="row-title"><strong>{b.title}</strong></div>
-                      <div className="row-excerpt">{b.content.slice(0, 90)}…</div>
-                    </td>
-                    <td><ImportanceBadge importance={b.importance} /></td>
-                    <td>{b.maritimeZone}</td>
-                    <td><ImportanceBadge importance={b.importance} /></td>
-                    <td>{fmtDate(b.createdAt)}</td>
-                    <td><StatusBadge status={b.status} /></td>
-                    <td className="text-right">
-                      <button className="icon-btn" title="Voir le détail" onClick={(e) => { e.stopPropagation(); setSelected(b); }}><ChevronRight size={14} /></button>
-                      <button className="icon-btn" title={b.status === "publie" ? "Archiver" : "Publier"} onClick={(e) => { e.stopPropagation(); b.status === "publie" ? handleArchive(b.id) : handlePublish(b.id); }}>
-                        {b.status === "publie" ? <Archive size={14} /> : <ShieldAlert size={14} />}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <div className="table-footer">
-            <span className="pagination-info">
-              Affichage de {paged.length ? (safePage - 1) * PAGE_SIZE + 1 : 0} à {Math.min(safePage * PAGE_SIZE, visible.length)} sur {visible.length} bulletins
-            </span>
-            <div className="pagination">
-              <button className={`page-btn ${safePage === 1 ? "disabled" : ""}`} disabled={safePage === 1} onClick={() => setPage(safePage - 1)}><ChevronLeft size={14} /></button>
-              {[1, 2, 3, 4, 5].filter((p) => p <= totalPages).map((p) => (
-                <button key={p} className={`page-btn ${safePage === p ? "active" : ""}`} onClick={() => setPage(p)}>{p}</button>
-              ))}
-              {totalPages > 5 && <span className="ellipsis">…</span>}
-              {totalPages > 5 && <button className="page-btn" onClick={() => setPage(totalPages)}>{totalPages}</button>}
-              <button className={`page-btn ${safePage === totalPages ? "disabled" : ""}`} disabled={safePage === totalPages} onClick={() => setPage(safePage + 1)}><ChevronRight size={14} /></button>
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 12 }}>
+            <div className="mock-card">
+              <div className="mock-card-h"><h3><FileText size={16} /> {t("bu.colType")}</h3></div>
+              <div className="mock-card-b" style={{ height: 200 }}>{q.isLoading ? <ChartSkeleton height={180} /> : barData.length === 0 ? <div style={{ height: "100%", display: "grid", placeItems: "center", color: "#7b93a8", fontSize: 13 }}>{t("c.noResult")}</div> : <ResponsiveContainer width="100%" height="100%"><BarChart data={barData}><XAxis dataKey="name" tick={{ fontSize: 10, fill: "#7b93a8" }} axisLine={false} tickLine={false} /><Tooltip /><Bar dataKey="value" radius={[6, 6, 0, 0]}>{barData.map((_, i) => <Cell key={i} fill={i % 2 ? "#60a5fa" : "#2563eb"} />)}</Bar></BarChart></ResponsiveContainer>}</div>
             </div>
+            <div className="mock-card">
+              <div className="mock-card-h"><h3><TriangleAlert size={16} /> {t("bu.colLevel")}</h3></div>
+              <div className="mock-card-b">{q.isLoading ? <ChartSkeleton height={160} /> : rows.length === 0 ? <div style={{ height: 160, display: "grid", placeItems: "center", color: "#7b93a8", fontSize: 13 }}>{t("c.noResult")}</div> : <div className="donut-wrap"><div style={{ width: 130, height: 130, position: "relative", flexShrink: 0 }}><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={donut} dataKey="value" innerRadius={44} outerRadius={62} paddingAngle={2} strokeWidth={0}>{donut.map((d, i) => <Cell key={i} fill={d.color} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer><div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}><div><div style={{ fontSize: 22, fontWeight: 800, color: "#0a2a5e" }}>{rows.length}</div><div style={{ fontSize: 11, color: "#7b93a8" }}>{t("nav.bulletins").toLowerCase()}</div></div></div></div><div className="legend">{donut.map((d) => <div key={String(d.key)}><i style={{ background: d.color }} />{d.name}<b>{d.pct}%</b><span className="n">({d.value})</span></div>)}</div></div>}</div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ position: "relative", flex: "1 1 220px" }}><Search size={16} style={{ position: "absolute", left: 12, top: 13, color: "#7b93a8" }} /><input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={t("bu.searchPh")} style={{ width: "100%", height: 42, border: "1.5px solid #d9e6f2", borderRadius: 10, padding: "0 12px 0 36px", fontSize: 13 }} /></div>
+            <select value={typeF} onChange={(e) => { setTypeF(e.target.value); setPage(1); }} style={{ height: 42, border: "1.5px solid #d9e6f2", borderRadius: 10, fontSize: 12.5, padding: "0 10px", background: "#fff" }}><option value={ALL}>{t("bu.allTypes")}</option>{types.map((x) => <option key={x} value={x}>{x}</option>)}</select>
+            <select value={zoneF} onChange={(e) => { setZoneF(e.target.value); setPage(1); }} style={{ height: 42, border: "1.5px solid #d9e6f2", borderRadius: 10, fontSize: 12.5, padding: "0 10px", background: "#fff" }}><option value={ALL}>{t("bu.allZones")}</option>{zones.map((z) => <option key={z} value={z}>{z}</option>)}</select>
+            <select value={lvlF} onChange={(e) => { setLvlF(e.target.value); setPage(1); }} style={{ height: 42, border: "1.5px solid #d9e6f2", borderRadius: 10, fontSize: 12.5, padding: "0 10px", background: "#fff" }}><option value={ALL}>{t("bu.allLevels")}</option><option value="information">{t("risk.low")}</option><option value="important">{t("risk.medium")}</option><option value="urgent">{t("risk.high")}</option><option value="critique">{t("risk.critical")}</option></select>
+          </div>
+
+          <div className="mock-card">
+            <div style={{ overflowX: "auto", padding: 12 }}>
+              {q.isLoading ? <TableSkeleton rows={6} cols={7} /> : paged.length === 0 ? (
+                <EmptyState title={t("bu.empty")} hint={search || typeF !== ALL || zoneF !== ALL || lvlF !== ALL ? t("c.noResult") : undefined} action={!isObserver ? <button className="btn-blue" style={{ padding: "0 18px" }} onClick={() => setShowCreate(true)}><Plus size={15} /> {t("bu.new")}</button> : undefined} />
+              ) : (
+              <table className="mock-table"><thead><tr><th>{t("bu.colN")}</th><th>{t("bu.colTitle")}</th><th>{t("bu.colType")}</th><th>{t("bu.colZone")}</th><th>{t("bu.colLevel")}</th><th>{t("bu.colDate")}</th><th>{t("bu.colStatus")}</th><th>{t("c.actions")}</th></tr></thead><tbody>
+                {paged.map((b) => (
+                  <tr key={b.id} className={selected?.id === b.id ? "sel" : ""} onClick={() => setSelectedId(b.id)} style={{ cursor: "pointer" }}>
+                    <td style={{ fontSize: 11.5, fontWeight: 700, color: "#0d7fdd" }}>BM-{new Date(b.createdAt).getFullYear()}-{String(b.id).padStart(3, "0")}</td>
+                    <td style={{ maxWidth: 180 }}><strong style={{ fontSize: 12.5 }}>{b.title}</strong></td>
+                    <td><span className={`bdg ${impBadge(b.importance)}`}>{impLabel(b.importance)}</span></td>
+                    <td style={{ fontSize: 12 }}>{b.maritimeZone}</td>
+                    <td><span className={`bdg ${lvlBadge(b.importance)}`}>{b.importance === "information" ? <Check size={11} /> : <TriangleAlert size={11} />}{lvlLabel(b.importance)}</span></td>
+                    <td style={{ fontSize: 11.5 }}>{new Date(b.createdAt).toLocaleDateString(locale)}<br />{new Date(b.createdAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</td>
+                    <td>{b.status === "publie" ? <span className="bdg bdg-green"><Check size={11} /> {t("bu.published")}</span> : b.status === "archive" ? <span className="bdg bdg-gray"><Archive size={11} /> {t("bu.archived")}</span> : <span className="bdg bdg-yellow"><Clock size={11} /> {t("bu.draft")}</span>}</td>
+                    <td><div className="mock-actions"><button className="icon-sq" onClick={(e) => { e.stopPropagation(); setSelectedId(b.id); }}><Eye size={14} /></button>{!isObserver && <button className="icon-sq" onClick={(e) => { e.stopPropagation(); update.mutate({ id: b.id, patch: { status: b.status === "publie" ? "archive" : "publie" } }); }}><MoreVertical size={14} /></button>}</div></td>
+                  </tr>
+                ))}
+              </tbody></table>)}
+            </div>
+            <div className="mock-pager"><small>{t("bu.showing", { a: paged.length ? (safePage - 1) * PAGE + 1 : 0, b: (safePage - 1) * PAGE + paged.length, n: rows.length })}</small>
+              <div className="pg-btns"><button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>←</button>{Array.from({ length: totalPages }).slice(0, 5).map((_, i) => <button key={i} className={safePage === i + 1 ? "on" : ""} onClick={() => setPage(i + 1)}>{i + 1}</button>)}<button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>→</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mock-side">
+          <div className="mock-detail">
+            <h3>{t("bu.detail")} {selected && <button style={{ marginLeft: "auto", color: "#7b93a8" }} onClick={() => setSelectedId(null)}><X size={16} /></button>}</h3>
+            {!selected ? <div style={{ fontSize: 13, color: "#7b93a8" }}>{t("bu.selEmpty")}</div> : (
+              <>
+                <div style={{ position: "relative" }}>
+                  <img src="/boat-inspection.jpg" alt="" style={{ width: "100%", height: 170, objectFit: "cover", borderRadius: 12 }} />
+                  <span className={`bdg ${impBadge(selected.importance)}`} style={{ position: "absolute", top: 8, right: 8 }}><TriangleAlert size={11} /> {impLabel(selected.importance)}</span>
+                </div>
+                <h2 style={{ margin: 0, fontSize: 19, color: "#0a2a5e", lineHeight: 1.25 }}>{selected.title}</h2>
+                <div style={{ display: "flex", gap: 12, fontSize: 12, color: "#0d7fdd", fontWeight: 600, flexWrap: "wrap" }}><span style={{ display: "inline-flex", gap: 5, alignItems: "center" }}><Clock size={13} /> {dt(selected.createdAt)}</span><span style={{ display: "inline-flex", gap: 5, alignItems: "center" }}><MapPin size={13} /> {selected.maritimeZone}</span></div>
+                <div style={{ background: selected.importance === "information" ? "#dcfce7" : "#fee2e2", color: selected.importance === "information" ? "#15803d" : "#b91c1c", borderRadius: 10, padding: "10px 12px", fontWeight: 800, fontSize: 13, display: "flex", gap: 8, alignItems: "center" }}><TriangleAlert size={16} /> {t("bu.level")} : {lvlLabel(selected.importance)}</div>
+                <div><h4 style={{ margin: "0 0 6px", fontSize: 13, display: "flex", gap: 6, alignItems: "center" }}><BadgeCheck size={14} color="#0d7fdd" /> {t("bu.summary")}</h4><p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: "#0a2a5e" }}>{selected.content}</p></div>
+                <div><h4 style={{ margin: "0 0 6px", fontSize: 13, display: "flex", gap: 6, alignItems: "center" }}><BadgeCheck size={14} color="#0d7fdd" /> {t("bu.reco")}</h4>
+                  <div style={{ display: "grid", gap: 5, fontSize: 12.5 }}>{(selected.importance === "information" ? t("bu.recoSafe") : t("bu.recoBad")).split(",").map((r, i) => <div key={i} style={{ display: "flex", gap: 7 }}><Check size={14} color="#16a34a" style={{ flexShrink: 0, marginTop: 2 }} /><span>{r}</span></div>)}</div>
+                </div>
+                <div><h4 style={{ margin: "0 0 6px", fontSize: 13, display: "flex", gap: 6, alignItems: "center" }}><FileText size={14} color="#0d7fdd" /> {t("bu.files")}</h4>
+                  {(() => { try { const atts = selected.attachments ? JSON.parse(selected.attachments) as string[] : []; if (!atts.length) return <div style={{ fontSize: 12, color: "#7b93a8" }}>{t("bu.noFiles")}</div>; return atts.map((u, i) => <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, padding: "6px 0" }}><span style={{ color: "#0d7fdd", fontWeight: 600 }}>Bulletin_{String(selected.id).padStart(3, "0")}.pdf</span><button className="icon-sq" onClick={() => window.open(u, "_blank")}><Download size={14} /></button></div>); } catch { return <div style={{ fontSize: 12, color: "#7b93a8" }}>{t("bu.noFiles")}</div>; } })()}
+                </div>
+                <button className="btn-blue" onClick={() => { const atts = (() => { try { return selected.attachments ? JSON.parse(selected.attachments) as string[] : []; } catch { return []; } })(); if (atts[0]) window.open(atts[0], "_blank"); else toast.info(t("bu.noFileDl")); }}><Download size={15} /> {t("c.download")}</button>
+                <button className="btn-outline-blue" onClick={async () => { try { await navigator.clipboard.writeText(`${selected.title} - ${selected.content}`); toast.success("OK"); } catch {} }}><Share2 size={15} /> {t("c.share")}</button>
+                {!isObserver && <button className="btn-outline-blue" onClick={() => update.mutate({ id: selected.id, patch: { status: selected.status === "publie" ? "archive" : "publie" } })}>{selected.status === "publie" ? <><Archive size={15} /> {t("bu.archive")}</> : <><Bell size={15} /> {t("bu.publish")}</>}</button>}
+              </>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Detail drawer (right panel like the image) */}
-      {selected && (
-        <>
-          <div className="drawer-overlay" onClick={() => setSelected(null)} />
-          <aside className="drawer-panel">
-            <div className="drawer-header">
-              <button className="close-drawer" onClick={() => setSelected(null)}><X size={18} /></button>
-              <h2>Détail du bulletin</h2>
-            </div>
-            <div className="drawer-body">
-              <div className="detail-image-wrap">
-                <img src="https://images.unsplash.com/photo-1577239987131-e8f972a38b7f?q=80&w=1000&auto=format&fit=crop" alt="Bulletin" />
-                <span className="detail-alert">Alerte</span>
-              </div>
-              <div className="detail-meta">
-                <h3>{selected.title}</h3>
-                <div className="detail-date"><Clock size={14} /> {fmtDate(selected.createdAt)} &nbsp;|&nbsp; <MapPin size={14} /> {selected.maritimeZone}</div>
-                <div className="detail-level">{importanceLabel[selected.importance]}</div>
-              </div>
-              <div className="detail-section">
-                <h4>Résumé</h4>
-                <p>{selected.content}</p>
-              </div>
-              <div className="detail-section">
-                <h4>Recommandations</h4>
-                <ul className="recos">
-                  <li><span style={{ display: "inline-block", width: 14, height: 14 }}>{"✔"}</span> Éviter la navigation en haute mer.</li>
-                  <li><span style={{ display: "inline-block", width: 14, height: 14 }}>{"✔"}</span> Renforcer la surveillance des côtes.</li>
-                  <li><span style={{ display: "inline-block", width: 14, height: 14 }}>{"✔"}</span> Suivre les mises à jour officielles.</li>
-                </ul>
-              </div>
-              <div className="detail-section">
-                <h4>Pièces jointes</h4>
-                <div className="attachments">
-                  {(selected.attachments ? JSON.parse(selected.attachments) : []).map((url: string, i: number) => (
-                    <div key={i} className="attachment-item">
-                      <File size={14} /> <span>Bulletin_Maritime_{String(selected.id).padStart(3, "0")}.pdf</span>
-                      <button className="download-btn" onClick={(e) => { e.stopPropagation(); handleDownload(url); }}><Download size={14} /></button>
-                    </div>
-                  ))}
-                  {(selected.attachments ? JSON.parse(selected.attachments) : []).length === 0 && <div className="attachment-item empty">Aucune pièce jointe</div>}
-                </div>
-              </div>
-              <div className="detail-actions">
-                <button className="download-all" onClick={() => { handleDownload("#"); toast.info("Téléchargement du lot préparé"); }}>
-                  <Download size={16} /> Télécharger
-                </button>
-                <button className="share-btn" onClick={(e) => { e.stopPropagation(); handleShare(); }}>
-                  <Share2 size={16} /> Partager
-                </button>
-              </div>
-              <div className="drawer-actions-bottom">
-                <button className="btn-toggle" onClick={() => { selected.status === "publie" ? handleArchive(selected.id) : handlePublish(selected.id); }}>
-                  {selected.status === "publie" ? "Archiver" : "Publier"}
-                </button>
-                <button className="btn-close" onClick={() => setSelected(null)}>Fermer</button>
-              </div>
-            </div>
-          </aside>
-        </>
       )}
 
-      {/* Create modal */}
-      {openCreate && (
-        <div className="modal-overlay" onClick={() => setOpenCreate(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <span className="eyebrow">Diffusion terrain</span>
-              <h2>Créer un avis maritime</h2>
-              <button className="modal-close" onClick={() => setOpenCreate(false)}><X size={18} /></button>
+      {showCreate && !isObserver && (
+        <div className="modal-overlay" onClick={() => setShowCreate(false)}><div className="modal-card" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header"><h2 style={{ margin: 0 }}>{t("bu.createTitle")}</h2><button className="modal-close" onClick={() => setShowCreate(false)}>×</button></div>
+          <div className="modal-body" style={{ display: "grid", gap: 10 }}>
+            <label className="field"><span>{t("bu.fTitle")} *</span><input className="input" value={cTitle} onChange={(e) => setCTitle(e.target.value)} placeholder={t("bu.fTitlePh")} /></label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <label className="field"><span>{t("bu.fZone")} *</span><input className="input" value={cZone} onChange={(e) => setCZone(e.target.value)} /></label>
+              <label className="field"><span>{t("bu.fCat")}</span><input className="input" value={cCat} onChange={(e) => setCCat(e.target.value)} /></label>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); handleCreate(); }}>
-              <label className="field"><span>Titre</span><input autoFocus value={createTitle} onChange={(e) => setCreateTitle(e.target.value)} placeholder="Ex: Forte houles sur le Golfe de Guinée" /></label>
-              <label className="field"><span>Zone maritime</span><input value={createZone} onChange={(e) => setCreateZone(e.target.value)} placeholder="Ex: Golfe de Guinée" /></label>
-              <label className="field"><span>Niveau</span><select value={createImportance} onChange={(e) => setCreateImportance(e.target.value as BulletinsImportance)}>
-                <option value="information">Information</option>
-                <option value="important">Important</option>
-                <option value="urgent">Urgent</option>
-                <option value="critique">Critique</option>
-              </select></label>
-              <label className="field"><span>Message / contenu</span><textarea className="text-area" value={createContent} onChange={(e) => setCreateContent(e.target.value)} rows={4} placeholder="Décrivez la situation maritime…" /></label>
-              <div className="modal-actions">
-                <button type="button" className="secondary-button" onClick={() => setOpenCreate(false)}>Annuler</button>
-                <button type="submit" className="primary-button" disabled={create.isPending}>{create.isPending ? "Enregistrement…" : "Enregistrer le bulletin"}</button>
-              </div>
-            </form>
+            <label className="field"><span>{t("bu.fLevel")}</span><select className="input" value={cImp} onChange={(e) => setCImp(e.target.value as Imp)}><option value="information">{t("lvl.info")} / {t("risk.low")}</option><option value="important">{t("lvl.warning")} / {t("risk.medium")}</option><option value="urgent">{t("lvl.alert")} / {t("risk.high")}</option><option value="critique">{t("risk.critical")}</option></select></label>
+            <label className="field"><span>{t("c.details")} *</span><textarea className="input" style={{ height: 100, padding: 12 }} value={cContent} onChange={(e) => setCContent(e.target.value)} /></label>
           </div>
-        </div>
+          <div className="modal-footer"><button className="btn btn-secondary" onClick={() => setShowCreate(false)}>{t("c.cancel")}</button><button className="btn btn-primary" disabled={!cTitle.trim() || cContent.trim().length < 10 || create.isPending} onClick={() => create.mutate({ title: cTitle.trim(), category: cCat, maritimeZone: cZone.trim(), importance: cImp, content: cContent.trim(), attachments: [] })}>{create.isPending ? "…" : t("c.save")}</button></div>
+        </div></div>
       )}
     </AppShell>
   );

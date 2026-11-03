@@ -1,8 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { addAuditEvent, addInspectionImage, addReportVersion, createAlert, createInspection, createMaritimeBulletin, createNotification, createReport, createVessel, dashboardMetrics, deleteAlert, deleteVessel, getAppSettings, getInspection, getReport, listAlertHistory, listAlerts, listAuditEvents, listInspectionFindings, listInspectionHistory, listInspectionImages, listInspections, listMaritimeBulletins, listNotifications, listReportVersions, listReports, listVessels, makeInspectionPdf, markAllNotificationsRead, markNotificationRead, replaceInspectionFindings, sha256, transitionInspection, updateAlertWithHistory, updateInspection, updateInspectionFinding, updateMaritimeBulletin, updateReport, updateVessel, upsertAppSetting } from "./db";
+import { addAuditEvent, addInspectionImage, addReportVersion, createAlert, createInspection, createMaritimeBulletin, createNotification, createReport, createVessel, dashboardMetrics, deleteAlert, deleteVessel, getAlert, getAppSettings, getInspection, getReport, getVessel, getVesselByRegistration, listAlertHistory, listAlerts, listAuditEvents, listInspectionFindings, listInspectionHistory, listInspectionImages, listInspections, listMaritimeBulletins, listNotifications, listReportVersions, listReports, listVessels, makeInspectionPdf, markAllNotificationsRead, markNotificationRead, replaceInspectionFindings, sha256, transitionInspection, updateAlertWithHistory, updateInspection, updateInspectionFinding, updateMaritimeBulletin, updateReport, updateVessel, upsertAppSetting } from "./db";
 import { storagePut } from "./storage";
-import { protectedProcedure, router, supervisorProcedure, adminAppProcedure as adminProcedure, operationalProcedure } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, router, supervisorProcedure, adminAppProcedure as adminProcedure, operationalProcedure } from "./_core/trpc";
 
 
 const vesselInput = z.object({
@@ -22,12 +22,34 @@ export const dataRouter = router({
     metrics: protectedProcedure.input(z.object({ period: z.enum(["24 heures", "7 jours", "30 jours"]).default("7 jours") })).query(({ input }) => dashboardMetrics(input.period)),
   }),
   inspections: router({
-    list: protectedProcedure.input(z.object({ limit: z.number().int().min(1).max(500).default(100), offset: z.number().int().min(0).default(0) }).optional()).query(({ input }) => listInspections(input?.limit ?? 100, input?.offset ?? 0)),
+    list: protectedProcedure.input(z.object({ limit: z.number().int().min(1).max(500).default(100), offset: z.number().int().min(0).default(0), vesselId: z.number().int().positive().optional() }).optional()).query(({ input }) => listInspections(input?.limit ?? 100, input?.offset ?? 0, input?.vesselId)),
     get: protectedProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input }) => {
       const [inspection, images, findings, history] = await Promise.all([getInspection(input.id), listInspectionImages(input.id), listInspectionFindings(input.id), listInspectionHistory(input.id)]);
-      return { inspection, images, findings, history };
+      if (!inspection) throw new TRPCError({ code: "NOT_FOUND", message: "Inspection introuvable." });
+      const vessel = inspection.vesselId ? await getVessel(inspection.vesselId).catch(() => undefined) : undefined;
+      return { inspection, images, findings, history, vessel };
     }),
-    create: operationalProcedure.input(z.object({ vesselId: z.number().int().positive(), place: z.string().min(2).max(120), inspectionDate: z.coerce.date(), comments: z.string().max(10000).optional(), passengersDetected: z.number().int().nonnegative().default(0), lifejacketsVisible: z.number().int().nonnegative().default(0) })).mutation(({ input, ctx }) => createInspection({ ...input, agentId: ctx.user.id, status: "en_cours" })),
+    create: operationalProcedure.input(z.object({ vesselId: z.number().int().positive(), place: z.string().min(2).max(120), inspectionDate: z.coerce.date(), comments: z.string().max(10000).optional(), passengersDetected: z.number().int().nonnegative().default(0), lifejacketsVisible: z.number().int().nonnegative().default(0) })).mutation(async ({ input, ctx }) => {
+      const created = await createInspection({ ...input, agentId: ctx.user.id, status: "en_cours" });
+      await addAuditEvent({ userId: ctx.user.id, action: "inspection.create", entityType: "inspection", entityId: String(created.id), metadata: JSON.stringify({ vesselId: input.vesselId, place: input.place }) });
+      return created;
+    }),
+    createFull: operationalProcedure.input(z.object({
+      registrationNumber: z.string().min(2).max(64), vesselName: z.string().max(160).optional(),
+      vesselType: z.string().min(2).max(80), ownerName: z.string().min(2).max(160),
+      capacity: z.number().int().nonnegative().default(0), place: z.string().min(2).max(120),
+      comments: z.string().max(10000).optional(),
+    })).mutation(async ({ input, ctx }) => {
+      let vessel = await getVesselByRegistration(input.registrationNumber.trim()).catch(() => undefined);
+      if (!vessel) {
+        const created = await createVessel({ registrationNumber: input.registrationNumber.trim(), name: input.vesselName || input.registrationNumber.trim(), type: input.vesselType, ownerName: input.ownerName, capacity: input.capacity, place: input.place, status: "conforme", riskScore: 0 });
+        vessel = await getVessel(created.id);
+      }
+      if (!vessel) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Embarcation introuvable après création." });
+      const inspection = await createInspection({ vesselId: vessel.id, place: input.place, inspectionDate: new Date(), comments: input.comments, agentId: ctx.user.id, status: "en_cours" });
+      await addAuditEvent({ userId: ctx.user.id, action: "inspection.create", entityType: "inspection", entityId: String(inspection.id), metadata: JSON.stringify({ vesselId: vessel.id, place: input.place }) });
+      return { inspectionId: inspection.id, vesselId: vessel.id, isNewVessel: false };
+    }),
     update: protectedProcedure.input(z.object({ id: z.number().int().positive(), patch: z.object({ place: z.string().min(2).max(120).optional(), inspectionDate: z.coerce.date().optional(), comments: z.string().max(10000).optional(), status: z.enum(["brouillon", "en_cours", "en_analyse", "a_verifier", "validee", "rejetee", "cloturee", "terminee"]).optional() }) })).mutation(async ({ input, ctx }) => { const inspection = await getInspection(input.id); if (!inspection || (inspection.agentId !== ctx.user.id && !["admin", "supervisor"].includes(ctx.user.appRole))) throw new TRPCError({ code: "FORBIDDEN", message: "Cette inspection ne vous appartient pas." }); if (input.patch.status) return transitionInspection(input.id, { status: input.patch.status, userId: ctx.user.id, metadata: input.patch }); return updateInspection(input.id, input.patch); }),
     review: supervisorProcedure.input(z.object({ inspectionId: z.number().int().positive(), findingId: z.number().int().positive(), status: z.enum(["confirmee", "corrigee", "ignoree", "a_verifier"]), note: z.string().max(4000).optional() })).mutation(async ({ input, ctx }) => { await updateInspectionFinding(input.findingId, input.inspectionId, { humanStatus: input.status, humanNote: input.note, confirmedBy: ctx.user.id }); if (input.status === "confirmee") { const inspection = await getInspection(input.inspectionId); const alert = await createAlert({ createdBy: ctx.user.id, vesselId: inspection?.vesselId, title: "Anomalie confirmée après inspection", description: input.note ?? "Une anomalie détectée par l’IA a été confirmée par un superviseur.", place: inspection?.place ?? "Non renseigné", urgency: "urgent", source: "ia" }); await createNotification({ userId: ctx.user.id, type: "inspection_review", title: "Alerte créée automatiquement", message: "Une anomalie confirmée a généré une alerte urgente.", href: `/alertes` }); return { success: true, alertId: alert.id }; } return { success: true }; }),
     transition: supervisorProcedure.input(z.object({ inspectionId: z.number().int().positive(), status: z.enum(["a_verifier", "validee", "rejetee", "cloturee"]), humanReview: z.enum(["non_revue", "confirmee", "corrigee", "rejetee"]).optional(), notes: z.string().max(5000).optional() })).mutation(({ input, ctx }) => transitionInspection(input.inspectionId, { status: input.status, userId: ctx.user.id, humanReview: input.humanReview, humanNotes: input.notes })),
@@ -36,20 +58,71 @@ export const dataRouter = router({
   }),
   vessels: router({
     list: protectedProcedure.input(z.object({ limit: z.number().int().min(1).max(500).default(100), offset: z.number().int().min(0).default(0) }).optional()).query(({ input }) => listVessels(input?.limit ?? 100, input?.offset ?? 0)),
-    create: operationalProcedure.input(vesselInput).mutation(({ input, ctx }) => createVessel({ ...input, latitude: input.latitude, longitude: input.longitude })),
-    update: supervisorProcedure.input(z.object({ id: z.number().int().positive(), patch: vesselInput.partial() })).mutation(({ input }) => updateVessel(input.id, input.patch)),
-    remove: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input }) => deleteVessel(input.id)),
+    get: protectedProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input }) => {
+      const vessel = await getVessel(input.id);
+      if (!vessel) throw new TRPCError({ code: "NOT_FOUND", message: "Embarcation introuvable." });
+      const [inspections, alerts] = await Promise.all([listInspections(50, 0, input.id), listAlerts(50, 0, input.id)]);
+      return { vessel, inspections, alerts };
+    }),
+    create: operationalProcedure.input(vesselInput).mutation(async ({ input, ctx }) => {
+      const existing = await getVesselByRegistration(input.registrationNumber).catch(() => undefined);
+      if (existing) throw new TRPCError({ code: "CONFLICT", message: "Cette immatriculation existe déjà." });
+      const created = await createVessel({ ...input, latitude: input.latitude, longitude: input.longitude });
+      await addAuditEvent({ userId: ctx.user.id, action: "vessel.create", entityType: "vessel", entityId: String(created.id), metadata: JSON.stringify({ registrationNumber: input.registrationNumber }) });
+      return created;
+    }),
+    update: supervisorProcedure.input(z.object({ id: z.number().int().positive(), patch: vesselInput.partial() })).mutation(async ({ input, ctx }) => {
+      const result = await updateVessel(input.id, input.patch);
+      await addAuditEvent({ userId: ctx.user.id, action: "vessel.update", entityType: "vessel", entityId: String(input.id), metadata: JSON.stringify(input.patch) });
+      return result;
+    }),
+    remove: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
+      const linked = await listInspections(1, 0, input.id);
+      if (linked.length > 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Impossible : des inspections sont liées à cette embarcation." });
+      const result = await deleteVessel(input.id);
+      await addAuditEvent({ userId: ctx.user.id, action: "vessel.delete", entityType: "vessel", entityId: String(input.id) });
+      return result;
+    }),
   }),
   alerts: router({
-    list: protectedProcedure.input(z.object({ limit: z.number().int().min(1).max(500).default(100), offset: z.number().int().min(0).default(0) }).optional()).query(({ input }) => listAlerts(input?.limit ?? 100, input?.offset ?? 0)),
+    list: protectedProcedure.input(z.object({ limit: z.number().int().min(1).max(500).default(100), offset: z.number().int().min(0).default(0), vesselId: z.number().int().positive().optional() }).optional()).query(({ input }) => listAlerts(input?.limit ?? 100, input?.offset ?? 0, input?.vesselId)),
+    get: protectedProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input }) => {
+      const alert = await getAlert(input.id);
+      if (!alert) throw new TRPCError({ code: "NOT_FOUND", message: "Alerte introuvable." });
+      return alert;
+    }),
     history: supervisorProcedure.input(z.object({ id: z.number().int().positive() })).query(({ input }) => listAlertHistory(input.id)),
-    create: operationalProcedure.input(alertInput).mutation(({ input, ctx }) => createAlert({ ...input, createdBy: ctx.user.id })),
+    create: operationalProcedure.input(alertInput).mutation(async ({ input, ctx }) => {
+      const created = await createAlert({ ...input, createdBy: ctx.user.id });
+      await addAuditEvent({ userId: ctx.user.id, action: "alert.create", entityType: "alert", entityId: String(created.id), metadata: JSON.stringify({ title: input.title }) });
+      return created;
+    }),
+    createPublic: publicProcedure.input(z.object({
+      title: z.string().min(3).max(180), description: z.string().max(10000).optional(), place: z.string().min(2).max(120),
+      latitude: z.string().optional(), longitude: z.string().optional(),
+      urgency: z.enum(["information", "elevee", "urgent", "detresse"]).default("urgent"),
+      contactPhone: z.string().max(40).optional(),
+    })).mutation(async ({ input }) => {
+      const created = await createAlert({ title: input.title, description: `${input.description ?? ""}${input.contactPhone ? ` (Contact: ${input.contactPhone})` : ""}`, place: input.place, latitude: input.latitude, longitude: input.longitude, urgency: input.urgency, source: "marin" });
+      await addAuditEvent({ action: "alert.marin_create", entityType: "alert", entityId: String(created.id), metadata: JSON.stringify({ place: input.place }) });
+      return created;
+    }),
     update: supervisorProcedure.input(z.object({ id: z.number().int().positive(), patch: alertInput.partial().extend({ assignedTo: z.number().int().positive().nullable().optional(), description: z.string().max(10000).optional(), status: z.enum(["nouvelle", "en_cours", "affectee", "resolue", "cloturee", "prise_en_charge"]).optional() }) })).mutation(({ input, ctx }) => updateAlertWithHistory(input.id, ctx.user.id, input.patch)),
     remove: supervisorProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input }) => deleteAlert(input.id)),
   }),
   reports: router({
     list: protectedProcedure.input(z.object({ limit: z.number().int().min(1).max(500).default(100), offset: z.number().int().min(0).default(0) }).optional()).query(({ input }) => listReports(input?.limit ?? 100, input?.offset ?? 0)),
-    get: protectedProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input }) => ({ report: await getReport(input.id), versions: await listReportVersions(input.id) })),
+    get: protectedProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input }) => {
+      const report = await getReport(input.id);
+      if (!report) throw new TRPCError({ code: "NOT_FOUND", message: "Rapport introuvable." });
+      const versions = await listReportVersions(input.id);
+      const inspection = report.inspectionId ? await getInspection(report.inspectionId).catch(() => undefined) : undefined;
+      const vessel = inspection?.vesselId ? await getVessel(inspection.vesselId).catch(() => undefined) : undefined;
+      const images = report.inspectionId ? await listInspectionImages(report.inspectionId).catch(() => []) : [];
+      const findings = report.inspectionId ? await listInspectionFindings(report.inspectionId).catch(() => []) : [];
+      const history = report.inspectionId ? await listInspectionHistory(report.inspectionId).catch(() => []) : [];
+      return { report, versions, inspection, vessel, images, findings, history };
+    }),
     createFromInspection: operationalProcedure.input(z.object({ inspectionId: z.number().int().positive(), title: z.string().max(180).default("Rapport d’inspection NaviGarde IA") })).mutation(async ({ input, ctx }) => { const inspection = await getInspection(input.inspectionId); if (!inspection) throw new TRPCError({ code: "NOT_FOUND", message: "Inspection introuvable." }); const reference = `RPT-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`; const content = `${input.title}\nInspection #${inspection.id}\nLieu : ${inspection.place}\nScore de risque : ${inspection.riskScore}/100\nRecommandation : ${inspection.recommendation ?? "Vérification humaine recommandée."}\nStatut : ${inspection.status}`; const created = await createReport({ inspectionId: input.inspectionId, reference, content, status: "brouillon", createdBy: ctx.user.id }); const pdf = makeInspectionPdf(input.title, content.split("\n")); const hash = sha256(pdf); const stored = await storagePut(`reports/${created.id}/v1.pdf`, pdf, "application/pdf"); await updateReport(created.id, { pdfStorageKey: stored.key, pdfUrl: stored.url, pdfSha256: hash }); await addReportVersion({ reportId: created.id, version: 1, content, pdfSha256: hash, createdBy: ctx.user.id }); return { ...created, reference, pdfUrl: stored.url, pdfSha256: hash }; }),
     update: operationalProcedure.input(z.object({ id: z.number().int().positive(), content: z.string().min(10).max(50000) })).mutation(async ({ input, ctx }) => { const report = await getReport(input.id); if (!report) throw new TRPCError({ code: "NOT_FOUND", message: "Rapport introuvable." }); const version = report.version + 1; const pdf = makeInspectionPdf(report.reference, input.content.split("\n")); const hash = sha256(pdf); const stored = await storagePut(`reports/${input.id}/v${version}.pdf`, pdf, "application/pdf"); await updateReport(input.id, { content: input.content, version, pdfStorageKey: stored.key, pdfUrl: stored.url, pdfSha256: hash, status: "a_valider" }); await addReportVersion({ reportId: input.id, version, content: input.content, pdfSha256: hash, createdBy: ctx.user.id }); return { success: true, version, pdfUrl: stored.url, pdfSha256: hash }; }),
     validate: supervisorProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => { await updateReport(input.id, { status: "valide", validatedBy: ctx.user.id, validatedAt: new Date() }); return { success: true }; }),

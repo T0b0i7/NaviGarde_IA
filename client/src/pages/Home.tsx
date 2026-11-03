@@ -1,250 +1,132 @@
 import { useMemo, useState } from "react";
-import { Area, AreaChart, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowDownRight, ArrowUpRight, Bell, BrainCircuit, CalendarDays, ChevronRight, Clock3, FileText, MapPin, Maximize2, Minimize2, Search, ShipWheel, Sparkles, TriangleAlert } from "lucide-react";
+import { Area, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
+import { Bell, BrainCircuit, CalendarDays, Check, ClipboardList, Clock3, Cpu, FileText, History, MapPin, Plus, Search, Settings as SettingsIcon, Ship, ShipWheel, Sparkles, TriangleAlert, Users, Zap } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import AppShell from "@/components/AppShell";
 import { trpc } from "@/lib/trpc";
+import { useLang } from "@/i18n/LanguageContext";
 
 type Insight = { headline: string; summary: string; signals: string[]; actions: string[]; confidence: number };
 
-function Kpi({ icon: Icon, color, label, value, delta, down, yesterday }: { icon: any; color: string; label: string; value: string; delta: string; down?: boolean; yesterday: string }) {
-  return (
-    <div className="kpi-card">
-      <div className="kpi-icon" style={{ backgroundColor: color }}><Icon size={20} /></div>
-      <div className="kpi-content">
-        <span className="kpi-label">{label}</span>
-        <strong className="kpi-value">{value}</strong>
-        <div className={`kpi-trend ${down ? "down" : "up"}`}>
-          {down ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />} {delta}
-        </div>
-        <small>{yesterday}</small>
-      </div>
-      <ChevronRight className="kpi-arrow" size={16} />
-    </div>
-  );
-}
-
 export default function Home() {
+  const { t, locale } = useLang();
   const [query, setQuery] = useState("");
   const [period, setPeriod] = useState<"24 heures" | "7 jours" | "30 jours">("7 jours");
   const [insight, setInsight] = useState<Insight | null>(null);
   const analysis = trpc.ai.analyzeDashboard.useMutation();
-  const dashboardQuery = trpc.data.dashboard.metrics.useQuery({ period }, { refetchInterval: 30000 });
-  const metrics = dashboardQuery.data?.totals;
-  const activity = dashboardQuery.data?.activity ?? [];
-  const risks = dashboardQuery.data?.risks ?? [];
-  const inspections = dashboardQuery.data?.recentInspections?.map((item) => ({
-    date: new Date(item.inspectionDate).toLocaleString("fr-FR"),
-    boat: `Embarcation #${item.vesselId}`,
-    type: "Inspection",
-    place: item.place,
-    risk: item.riskScore >= 75 ? "Critique" : item.riskScore >= 50 ? "Eleve" : item.riskScore >= 25 ? "Moyen" : "Faible",
-    status: item.status === "terminee" ? "Cloturee" : item.status === "rejetee" ? "Rejetee" : "En cours",
-    agent: item.agentId ? `Agent #${item.agentId}` : "Non affecte"
-  })) ?? [];
-  const alerts = dashboardQuery.data?.recentAlerts?.map((item) => ({
-    title: item.title,
-    boat: item.vesselId ? `Embarcation #${item.vesselId}` : "Signal terrain",
-    meta: `${new Date(item.createdAt).toLocaleString("fr-FR")} · ${item.place}`,
-    tone: item.urgency === "detresse" ? "critical" : item.urgency === "elevee" ? "warning" : "info"
-  })) ?? [];
+  const me = trpc.auth.me.useQuery(undefined, { retry: false });
+  const dq = trpc.data.dashboard.metrics.useQuery({ period }, { refetchInterval: 30000 });
+  const m = dq.data?.totals;
+  const activity = dq.data?.activity ?? [];
+  const risks = (dq.data?.risks ?? []) as Array<{ name: string; value: number; color: string }>;
+  const firstName = (me.data?.name ?? "").split(" ")[0] || "Officer";
+  const roleCode = (me.data?.appRole ?? "observer") as "agent" | "supervisor" | "admin" | "observer";
+  const roleName = t(`role.${roleCode}`);
+  const canCreate = roleCode !== "observer";
+  const quickActions = (
+    roleCode === "admin"
+      ? [["qaNew", "/inspections/new", Plus], ["qaAlerts", "/alertes", Bell], ["qaReports", "/rapports", FileText], ["qaVessels", "/embarcations", ShipWheel], ["qaUsers", "/utilisateurs", Users], ["qaAudit", "/audit", History], ["qaParams", "/parametres", SettingsIcon]]
+      : roleCode === "supervisor"
+        ? [["qaNew", "/inspections/new", Plus], ["qaAlerts", "/alertes", Bell], ["qaReports", "/rapports", FileText], ["qaVessels", "/embarcations", ShipWheel], ["qaAudit", "/audit", History]]
+        : roleCode === "agent"
+          ? [["qaNew", "/inspections/new", Plus], ["qaAlerts", "/alertes", Bell], ["qaVessels", "/embarcations", ShipWheel]]
+          : [["qaReports", "/rapports", FileText], ["qaVessels", "/embarcations", ShipWheel], ["qaBulletins", "/bulletins", ClipboardList]]
+  ) as Array<[string, string, typeof Plus]>;
 
-  const filteredInspections = useMemo(() => inspections.filter((item) => `${item.boat} ${item.place} ${item.agent}`.toLowerCase().includes(query.toLowerCase())), [query, inspections]);
-  const filteredAlerts = useMemo(() => alerts.filter((item) => `${item.title} ${item.boat}`.toLowerCase().includes(query.toLowerCase())), [query, alerts]);
+  const periodLabel = (p: string) => (p === "24 heures" ? t("home.h24") : p === "30 jours" ? t("home.d30") : t("home.d7"));
+  const inspections = (dq.data?.recentInspections ?? []).map((it) => ({
+    id: it.id, date: new Date(it.inspectionDate).toLocaleString(locale),
+    boat: `Embarcation #${it.vesselId}`, place: it.place,
+    risk: it.riskScore >= 75 ? t("risk.critical") : it.riskScore >= 50 ? t("risk.high") : it.riskScore >= 25 ? t("risk.medium") : t("risk.low"),
+    riskRank: it.riskScore >= 75 ? 3 : it.riskScore >= 50 ? 2 : it.riskScore >= 25 ? 1 : 0,
+    status: ["terminee", "cloturee", "validee"].includes(it.status) ? t("insp.stClosed") : it.status === "rejetee" ? t("insp.stRejected") : t("insp.stEnCours"),
+    closed: ["terminee", "cloturee", "validee"].includes(it.status), rejected: it.status === "rejetee",
+    agent: it.agentId ? `Agent #${it.agentId}` : "-",
+  }));
+  const alerts = (dq.data?.recentAlerts ?? []).map((it) => ({ id: it.id, title: it.title, boat: it.vesselId ? `Embarcation #${it.vesselId}` : "Signal", meta: `${new Date(it.createdAt).toLocaleString(locale)} · ${it.place}`, tone: it.urgency === "detresse" || it.urgency === "urgent" ? "critical" : it.urgency === "elevee" ? "warning" : "info" }));
+  const fInsp = useMemo(() => inspections.filter((x) => `${x.boat} ${x.place} ${x.agent}`.toLowerCase().includes(query.toLowerCase())), [query, inspections]);
+  const fAlerts = useMemo(() => alerts.filter((x) => `${x.title} ${x.boat}`.toLowerCase().includes(query.toLowerCase())), [query, alerts]);
 
   const analyze = async () => {
-    toast.info("Analyse IA lancee · NaviGarde croise les signaux avec les risques terrain.");
-    try {
-      const result = await analysis.mutateAsync({ period, activity, risks, problems: [], delays: [], teamScore: 86 });
-      setInsight(result);
-      toast.success("Analyse operationnelle disponible");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Analyse IA indisponible");
-    }
+    if (analysis.isPending) return;
+    toast.info(t("home.aiStarted"));
+    try { const r = await analysis.mutateAsync({ period, activity, risks, problems: [], delays: [], teamScore: 80 }); setInsight(r); toast.success(t("home.aiDone")); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "AI unavailable"); }
   };
+
+  const donut = risks.length ? risks.map((r) => ({ ...r, name: r.name === "Faible" ? t("risk.low") : r.name === "Moyen" ? t("risk.medium") : r.name === "Élevé" ? t("risk.high") : t("risk.critical") }))
+    : [{ name: t("risk.low"), value: 0, color: "#16a34a" }, { name: t("risk.medium"), value: 0, color: "#f59e0b" }, { name: t("risk.high"), value: 0, color: "#f97316" }, { name: t("risk.critical"), value: 0, color: "#ef4444" }];
 
   return (
     <AppShell>
-      <section className="page-header">
-        <div>
-          <span className="eyebrow">Centre de commandement · Temps reel</span>
-          <h1 className="page-title">Bonjour, Thomas ADJE.</h1>
-          <p className="page-subtitle">Une vue claire des risques, des equipes et des decisions a prendre aujourd’hui.</p>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div><span className="mock-back" style={{ cursor: "default" }}>{t("home.kicker")}</span><h1 className="mock-h1">{t("home.hello")}, {firstName}. <span className="bdg bdg-blue" style={{ verticalAlign: "4px", marginLeft: 6 }}>{roleName}</span></h1><p className="mock-sub">{t("home.sub")}</p></div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, border: "1.5px solid #d9e6f2", background: "#fff", borderRadius: 10, padding: "0 12px", height: 42 }}><CalendarDays size={15} color="#0d7fdd" /><select value={period} onChange={(e) => setPeriod(e.target.value as never)} style={{ border: 0, outline: 0, fontSize: 12.5, fontWeight: 700, color: "#0a2a5e" }}><option value="24 heures">{t("home.h24")}</option><option value="7 jours">{t("home.d7")}</option><option value="30 jours">{t("home.d30")}</option></select></label>
+          <span className="bdg bdg-blue"><MapPin size={12} />{t("home.zone")}</span>
+          <button className="btn-blue" style={{ height: 42, padding: "0 16px", fontSize: 13 }} disabled={analysis.isPending} onClick={analyze}><BrainCircuit size={15} /> {analysis.isPending ? t("home.aiRunning") : t("home.aiBtn")}</button>
         </div>
-        <div className="topbar-right">
-          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", border: "1px solid var(--ng-line)", background: "#fff", borderRadius: "var(--ng-radius)", padding: "0 1rem", height: "40px", color: "#157eaa" }}>
-            <CalendarDays size={15} />
-            <select value={period} onChange={(e) => { setPeriod(e.target.value as "24 heures" | "7 jours" | "30 jours"); toast.success("Periode changee : " + e.target.value); }} style={{ border: "none", background: "transparent", color: "#315873", fontSize: "12px", outline: "none" }}>
-              <option>24 heures</option>
-              <option>7 jours</option>
-              <option>30 jours</option>
-            </select>
-          </label>
-          <span className="location-chip">
-            <MapPin size={14} /> Littoral · Benin
-          </span>
-        </div>
-      </section>
+      </div>
+      <div style={{ height: 14 }} />
+      {dq.isError && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: 10, fontSize: 13, color: "#b91c1c", marginBottom: 12 }}>{t("c.dbDown")} <button onClick={() => dq.refetch()} style={{ textDecoration: "underline", fontWeight: 700 }}>{t("c.retry")}</button></div>}
 
-      <section className="kpi-row">
-        <Kpi icon={FileText} color="#2563eb" label="Inspections totales" value={String(metrics?.inspections ?? 0)} delta={String(metrics?.inspectionsToday ?? 0) + " aujourd’hui"} yesterday="—" />
-        <Kpi icon={Bell} color="#0ca7b0" label="Alertes ouvertes" value={String(metrics?.openAlerts ?? 0)} delta="a traiter" yesterday="—" />
-        <Kpi icon={ShipWheel} color="#7c3aed" label="Embarcations suivies" value={String(metrics?.vessels ?? 0)} delta="en veille" yesterday="—" />
-        <Kpi icon={Clock3} color="#f59e0b" label="Rapports en attente" value={String(metrics?.pendingReports ?? 0)} delta="a valider" down yesterday="—" />
-      </section>
+      <div className="mock-kpis" style={{ marginBottom: 12 }}>
+        {dq.isLoading ? (
+          [0, 1, 2, 3].map((i) => <div key={i} className="skel" style={{ height: 88 }} />)
+        ) : (
+          <>
+            <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#2563eb" }}><FileText size={20} /></div><div><small>{t("home.kpiInsp")}</small><strong>{m?.inspections ?? 0}</strong><span className="sub">{m?.inspectionsToday ?? 0} {t("home.kpiToday")}</span></div></div>
+            <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#f59e0b" }}><Bell size={20} /></div><div><small>{t("home.kpiAlerts")}</small><strong>{m?.openAlerts ?? 0}</strong><span className="sub">{t("home.kpiTodo")}</span></div></div>
+            <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#0d9488" }}><Ship size={20} /></div><div><small>{t("home.kpiVessels")}</small><strong>{m?.vessels ?? 0}</strong><span className="sub">{t("home.kpiWatch")}</span></div></div>
+            <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#7c3aed" }}><Clock3 size={20} /></div><div><small>{t("home.kpiReports")}</small><strong>{m?.pendingReports ?? 0}</strong><span className="sub">{t("home.kpiValidate")}</span></div></div>
+          </>
+        )}
+      </div>
 
-      <section className="dashboard-grid">
-        <div className="card analytics-wide" style={{ gridColumn: "span 2" }}>
-          <div className="card-header">
-            <div>
-              <h2 style={{ fontSize: "18px", fontWeight: 800, color: "var(--ng-text)", margin: "0 0 4px" }}>Activite des inspections</h2>
-              <small style={{ color: "var(--ng-text-muted)" }}>Tendance sur la periode selectionnee</small>
-            </div>
-            <button className="btn-icon primary" onClick={() => analyze()}>
-              <BrainCircuit size={16} />
-            </button>
-          </div>
-          <div className="card-body" style={{ paddingTop: 0 }}>
-            <ResponsiveContainer width="100%" height={320}>
-              <LineChart data={activity}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eef2f6" />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "var(--ng-text-muted)" }} axisLine={false} tickMargin={8} />
-                <YAxis tick={{ fontSize: 11, fill: "var(--ng-text-muted)" }} axisLine={false} hide />
-                <Tooltip cursor={{ strokeDasharray: "3 3" }} contentStyle={{ background: "#fff", border: "1px solid var(--ng-line)" }} />
-                <Line type="monotone" dataKey="confirmed" stroke="var(--ng-blue)" strokeWidth={2.5} dot={{ fill: "var(--ng-blue)", stroke: "#fff", strokeWidth: 2 }} />
-                <Area type="monotone" dataKey="confirmed" fillOpacity={0.1} fill="var(--ng-blue)" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+      <div className="mock-card" style={{ marginBottom: 12 }}><div className="mock-card-b" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", padding: "12px 16px" }}>
+        <strong style={{ fontSize: 13, display: "inline-flex", gap: 7, alignItems: "center", color: "#0a2a5e" }}><Zap size={15} color="#0d7fdd" /> {t("home.qa")}</strong>
+        {quickActions.map(([key, href, Icon]) => <Link key={key} href={href} className="btn-outline-blue" style={{ width: "auto", height: 38, fontSize: 12.5, padding: "0 14px", textDecoration: "none" }}><Icon size={14} /> {t(`home.${key}` as never)}</Link>)}
+      </div></div>
 
-        <div className="card risks-panel">
-          <div className="card-header">
-            <div>
-              <h2 style={{ fontSize: "18px", fontWeight: 800, color: "var(--ng-text)", margin: "0 0 4px" }}>Repartition des risques</h2>
-              <small style={{ color: "var(--ng-text-muted)" }}>Niveau de criticite des embarcations</small>
-            </div>
-            <button className="btn-icon secondary" onClick={() => analyze()}>
-              <BrainCircuit size={16} />
-            </button>
-          </div>
-          <div className="card-body" style={{ paddingTop: 0, display: "flex", gap: 1, flexWrap: "wrap" }}>
-            {risks.map((risk: any, i: number) => (
-              <div key={i} style={{ flex: 1, minWidth: 120, display: "flex", flexDirection: "column", gap: 0.5, alignItems: "center" }}>
-                <div style={{ width: 48, height: 48, borderRadius: "50%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: risk.color === "critique" ? "#fee2e2" : risk.color === "eleve" ? "#fef3c7" : risk.color === "moyen" ? "#e0f2fe" : "#dcfce7" }}>
-                  <span style={{ fontSize: 20 }}>{risk.color === "critique" ? "!" : risk.color === "eleve" ? "!" : risk.color === "moyen" ? "!" : "!"}</span>
-                </div>
-                <strong style={{ fontSize: "13px", color: "var(--ng-text)" }}>{risk.name}</strong>
-                <span style={{ fontSize: "11px", color: risk.color === "critique" ? "var(--ng-danger)" : risk.color === "eleve" ? "var(--ng-warning)" : risk.color === "moyen" ? "var(--ng-info)" : "var(--ng-success)", fontWeight: 700 }}>{risk.value}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 12, marginBottom: 12 }}>
+        <div className="mock-card"><div className="mock-card-h"><h3>{t("home.activity")}</h3><small style={{ color: "#7b93a8", fontSize: 11 }}>{periodLabel(period)}</small></div>
+          <div className="mock-card-b" style={{ height: 260 }}>
+            {dq.isLoading ? <div className="skel" style={{ height: "100%" }} /> : activity.length === 0 ? <div style={{ height: "100%", display: "grid", placeItems: "center", color: "#7b93a8", fontSize: 13 }}>{t("home.noInsp")}</div> : (
+            <ResponsiveContainer width="100%" height="88%"><LineChart data={activity}><CartesianGrid strokeDasharray="3 3" stroke="#eef2f6" /><XAxis dataKey="day" tick={{ fontSize: 10, fill: "#7b93a8" }} axisLine={false} tickLine={false} /><Tooltip /><Line type="monotone" dataKey="confirmed" stroke="#0d7fdd" strokeWidth={2.5} dot={false} name={t("home.lgConfirmed")} /><Line type="monotone" dataKey="progress" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 4" dot={false} name={t("home.lgOngoing")} /><Area type="monotone" dataKey="confirmed" fill="#0d7fdd" fillOpacity={0.1} stroke="none" /></LineChart></ResponsiveContainer>)}
+            {!dq.isLoading && activity.length > 0 && <div style={{ display: "flex", gap: 14, justifyContent: "center", marginTop: 6, fontSize: 11.5, color: "#5b7a96" }}><span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><i style={{ width: 14, height: 3, borderRadius: 2, background: "#0d7fdd" }} />{t("home.lgConfirmed")}</span><span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><i style={{ width: 14, height: 3, borderRadius: 2, background: "#f59e0b" }} />{t("home.lgOngoing")}</span></div>}
+          </div></div>
+        <div className="mock-card"><div className="mock-card-h"><h3><Cpu size={15} /> {t("home.risks")}</h3></div>
+          <div className="mock-card-b"><div className="donut-wrap">
+            <div style={{ width: 120, height: 120, position: "relative", flexShrink: 0 }}><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={donut} dataKey="value" innerRadius={40} outerRadius={56} paddingAngle={2} strokeWidth={0}>{donut.map((d, i) => <Cell key={i} fill={d.color} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer>
+              <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}><Check size={22} color="#16a34a" /></div></div>
+            <div className="legend">{donut.map((d) => <div key={d.name}><i style={{ background: d.color }} />{d.name}<b>{d.value}%</b></div>)}</div>
+          </div></div></div>
+      </div>
 
-      <section className="dashboard-grid">
-        <div className="card" style={{ gridColumn: "span 2" }}>
-          <div className="card-header">
-            <div>
-              <h2 style={{ fontSize: "18px", fontWeight: 800, color: "var(--ng-text)", margin: "0 0 4px" }}>Dernieres inspections</h2>
-              <small style={{ color: "var(--ng-text-muted)" }}>Historique des controles maritimes</small>
-            </div>
-            <div className="table-search" style={{ width: 260, position: "relative" }}>
-              <Search size={16} style={{ position: "absolute", left: "1rem", top: "50%", transform: "translateY(-50%)", color: "var(--ng-text-muted)" }} />
-              <input placeholder="Rechercher une embarcation, une zone, un agent…" value={query} onChange={(e) => setQuery(e.target.value)} className="input" style={{ paddingLeft: "2.5rem" }} />
-            </div>
-          </div>
-          <div className="card-body" style={{ paddingTop: 0, overflowX: "auto" }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Embarcation</th>
-                  <th>Zone</th>
-                  <th>Risque</th>
-                  <th>Statut</th>
-                  <th>Date</th>
-                  <th>Agent</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredInspections.map((insp, i) => (
-                  <tr key={i}>
-                    <td><strong>{insp.boat}</strong></td>
-                    <td>{insp.place}</td>
-                    <td><span className={`badge ${insp.risk === "Critique" ? "badge-danger" : insp.risk === "Eleve" ? "badge-warning" : insp.risk === "Moyen" ? "badge-info" : "badge-neutral"}`}>{insp.risk}</span></td>
-                    <td><span className={`badge ${insp.status === "Cloturee" ? "badge-success" : insp.status === "Rejetee" ? "badge-danger" : "badge-info"}`}>{insp.status}</span></td>
-                    <td>{insp.date}</td>
-                    <td>{insp.agent}</td>
-                  </tr>
-                ))}
-                {filteredInspections.length === 0 && (
-                  <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--ng-text-muted)", padding: "2rem" }}>Aucune inspection trouvee</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="card alerts-panel">
-          <div className="card-header">
-            <div>
-              <h2 style={{ fontSize: "18px", fontWeight: 800, color: "var(--ng-text)", margin: "0 0 4px" }}>Alertes recentes</h2>
-              <small style={{ color: "var(--ng-text-muted)" }}>Surveillance maritime en temps reel</small>
-            </div>
-            <Link href="/alertes" className="btn btn-secondary" style={{ height: "auto", padding: "0 1rem", fontSize: "13px" }}>Voir toutes</Link>
-          </div>
-          <div className="card-body" style={{ paddingTop: 0, display: "flex", flexDirection: "column", gap: 0.75 }}>
-            {filteredAlerts.map((alert, i) => (
-              <div key={i} className="alert-row-button" style={{ display: "flex", alignItems: "center", gap: 0.75, padding: "0.75rem 1rem", borderRadius: "var(--ng-radius)", background: "#fff", border: "1px solid var(--ng-line)", cursor: "pointer" }}>
-                <div style={{ width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: alert.tone === "critical" ? "#fee2e2" : alert.tone === "warning" ? "#fef3c7" : "#e0f2fe", color: alert.tone === "critical" ? "var(--ng-danger)" : alert.tone === "warning" ? "var(--ng-warning)" : "var(--ng-info)", fontSize: 16 }}>
-                  <TriangleAlert size={16} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 0.25 }}>
-                    <strong style={{ fontSize: "13px", color: "var(--ng-text)" }}>{alert.title}</strong>
-                    <span style={{ fontSize: "11px", color: "var(--ng-text-muted)" }}>{alert.meta}</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>{alert.boat}</span>
-                  </div>
-                </div>
-                <ChevronRight size={14} style={{ color: "var(--ng-text-muted)" }} />
-              </div>
-            ))}
-            {filteredAlerts.length === 0 && (
-              <div style={{ padding: "1.5rem", textAlign: "center", color: "var(--ng-text-muted)" }}>Aucune alerte active</div>
-            )}
-          </div>
-        </div>
-      </section>
+      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 12 }}>
+        <div className="mock-card"><div className="mock-card-h"><h3><FileText size={15} /> {t("home.latest")}</h3><div style={{ display: "flex", gap: 8 }}><div style={{ position: "relative" }}><Search size={14} style={{ position: "absolute", left: 10, top: 10, color: "#7b93a8" }} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("home.searchPh")} style={{ height: 36, border: "1.5px solid #d9e6f2", borderRadius: 9, padding: "0 10px 0 30px", fontSize: 12 }} /></div><Link href="/inspections/new" className="btn-blue" style={{ height: 36, fontSize: 12, padding: "0 12px", textDecoration: "none", display: canCreate ? "inline-flex" : "none" }}><Plus size={14} /> {t("home.newInspection")}</Link></div></div>
+          <div style={{ overflowX: "auto", padding: "0 12px 12px" }}>
+            {dq.isLoading ? <div style={{ padding: "2rem", textAlign: "center", color: "#7b93a8" }}>{t("c.loading")}</div> : fInsp.length === 0 ? <div style={{ padding: "2rem", textAlign: "center", color: "#7b93a8", fontSize: 13 }}>{inspections.length === 0 ? t("home.noInsp") : t("home.noMatch")}</div> : (
+            <table className="mock-table"><thead><tr><th>#</th><th>{t("home.colVessel")}</th><th>{t("home.colZone")}</th><th>{t("home.colRisk")}</th><th>{t("home.colStatus")}</th><th>{t("home.colAgent")}</th></tr></thead><tbody>
+              {fInsp.slice(0, 5).map((x) => <tr key={x.id} onClick={() => window.location.assign(`/inspections/${x.id}`)} style={{ cursor: "pointer" }}><td><strong style={{ color: "#0d7fdd" }}>#{x.id}</strong></td><td><strong style={{ fontSize: 12 }}>{x.boat}</strong></td><td style={{ fontSize: 12 }}>{x.place}</td><td><span className={`bdg ${x.riskRank === 3 ? "bdg-red" : x.riskRank === 2 ? "bdg-orange" : x.riskRank === 1 ? "bdg-yellow" : "bdg-green"}`}>{x.risk}</span></td><td><span className={`bdg ${x.closed ? "bdg-green" : x.rejected ? "bdg-red" : "bdg-blue"}`}>{x.status}</span></td><td style={{ fontSize: 11 }}>{x.agent}</td></tr>)}
+            </tbody></table>)}
+          </div></div>
+        <div className="mock-card"><div className="mock-card-h"><h3><Bell size={15} /> {t("home.recentAlerts")}</h3><Link href="/alertes" className="btn-outline-blue" style={{ width: "auto", height: 34, fontSize: 12, padding: "0 12px", textDecoration: "none" }}>{t("home.viewAll")}</Link></div>
+          <div className="mock-card-b" style={{ display: "grid", gap: 8 }}>
+            {fAlerts.length === 0 && <div style={{ color: "#7b93a8", fontSize: 13, textAlign: "center", padding: "1rem" }}>{t("home.noAlerts")}</div>}
+            {fAlerts.slice(0, 5).map((a) => <Link key={a.id} href="/alertes" style={{ display: "flex", gap: 10, border: "1px solid #e3ecf4", borderRadius: 12, padding: "10px 12px", alignItems: "center" }}><span style={{ width: 34, height: 34, borderRadius: "50%", display: "grid", placeItems: "center", background: a.tone === "critical" ? "#fee2e2" : a.tone === "warning" ? "#fef3c7" : "#e0f2fe", color: a.tone === "critical" ? "#b91c1c" : "#0d7fdd", flexShrink: 0 }}><TriangleAlert size={15} /></span><span style={{ flex: 1, minWidth: 0 }}><strong style={{ fontSize: 12.5, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</strong><small style={{ fontSize: 11, color: "#7b93a8" }}>{a.meta}</small></span></Link>)}
+          </div></div>
+      </div>
 
       {insight && (
-        <section className="ai-insight">
-          <div className="card" style={{ borderLeft: "4px solid var(--ng-blue)" }}>
-            <div className="card-header" style={{ display: "flex", alignItems: "flex-start", gap: 1, marginBottom: 1 }}>
-              <div style={{ width: 36, height: 36, background: "#e0f2fe", borderRadius: "var(--ng-radius)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ng-blue)", fontSize: 18 }}>
-                <Sparkles size={18} />
-              </div>
-              <div>
-                <h2 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "var(--ng-text)" }}>{insight.headline}</h2>
-                <p style={{ margin: "2px 0 0", fontSize: "13px", color: "var(--ng-text-muted)" }}>{insight.summary}</p>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 1, flexWrap: "wrap", marginBottom: 1 }}>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--ng-blue)", background: "#e0f2fe", padding: "4px 8px", borderRadius: "6px" }}>Confiance : {insight.confidence}%</span>
-              {insight.signals.map((s, i) => (
-                <span key={i} style={{ fontSize: "11px", color: "var(--ng-text-muted)", background: "#f1f5f9", padding: "4px 8px", borderRadius: "6px" }}>{s}</span>
-              ))}
-            </div>
-            <div style={{ marginTop: 1 }}>
-              <h3 style={{ fontSize: "13px", fontWeight: 700, color: "var(--ng-text)", margin: "0 0 0.5rem" }}>Actions recommandees</h3>
-              <ul style={{ margin: 0, paddingLeft: 1.25, color: "var(--ng-text-muted)", fontSize: "13px", lineHeight: 1.6 }}>
-                {insight.actions.map((a, i) => <li key={i}>{a}</li>)}
-              </ul>
-            </div>
+        <div className="mock-card" style={{ marginTop: 12, borderLeft: "4px solid #0d7fdd" }}><div className="mock-card-b" style={{ display: "flex", gap: 12 }}>
+          <span style={{ width: 38, height: 38, borderRadius: 11, background: "#e0f2fe", color: "#0d7fdd", display: "grid", placeItems: "center", flexShrink: 0 }}><Sparkles size={18} /></span>
+          <div style={{ flex: 1 }}><strong style={{ fontSize: 15 }}>{insight.headline}</strong><p style={{ margin: "4px 0 8px", fontSize: 13, color: "#5b7a96" }}>{insight.summary}</p>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><span className="bdg bdg-blue">{t("home.aiConfidence")} {insight.confidence}%</span>{insight.signals.map((s, i) => <span key={i} className="bdg bdg-gray">{s}</span>)}</div>
+            <div style={{ marginTop: 8 }}><strong style={{ fontSize: 12.5 }}>{t("home.aiActions")}</strong><ul style={{ margin: "4px 0 0", paddingLeft: 18, fontSize: 12.5, color: "#5b7a96" }}>{insight.actions.map((a, i) => <li key={i}>{a}</li>)}</ul></div>
           </div>
-        </section>
+        </div></div>
       )}
     </AppShell>
   );

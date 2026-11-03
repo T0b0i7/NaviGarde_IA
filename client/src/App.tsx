@@ -6,6 +6,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import NewInspection from "./pages/NewInspection";
+import InspectionsPage from "./pages/InspectionsPage";
 import { AlertsPage, AuditPage, MarinAlertPage, ReportsPage, UsersPage, VesselsPage } from "./pages/Operations";
 import { BulletinsPage } from "./pages/BulletinsPage";
 import Login from "./pages/Login";
@@ -13,6 +14,7 @@ import Settings from "./pages/Settings";
 import Forbidden from "./pages/Forbidden";
 import InspectionDetail from "./pages/InspectionDetail";
 import ReportsCenter from "./pages/ReportsCenter";
+import ReportDetail from "./pages/ReportDetail";
 import VesselsCenter from "./pages/VesselsCenter";
 import VesselDetail from "./pages/VesselDetail";
 import { canAccess, roleLabel } from "@shared/rbac";
@@ -37,7 +39,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function Router() {
-  return <Switch><Route path="/connexion" component={Login} /><Route path="/marin/alerte" component={MarinAlertPage} /><Route path="/forbidden" component={Forbidden} /><Route path="/" component={Home} /><Route path="/inspections/new" component={NewInspection} /><Route path="/inspections/:id" component={InspectionDetail} /><Route path="/alertes" component={AlertsPage} /><Route path="/rapports" component={ReportsCenter} /><Route path="/embarcations/:id" component={VesselDetail} /><Route path="/embarcations" component={VesselsCenter} /><Route path="/bulletins" component={BulletinsPage} /><Route path="/utilisateurs" component={UsersPage} /><Route path="/audit" component={AuditPage} /><Route path="/parametres" component={Settings} /><Route path="/404" component={NotFound} /><Route component={NotFound} /></Switch>;
+  return <Switch><Route path="/connexion" component={Login} /><Route path="/marin/alerte" component={MarinAlertPage} /><Route path="/forbidden" component={Forbidden} /><Route path="/" component={Home} /><Route path="/inspections/new" component={NewInspection} /><Route path="/inspections" component={InspectionsPage} /><Route path="/inspections/:id" component={InspectionDetail} /><Route path="/alertes" component={AlertsPage} /><Route path="/rapports" component={ReportsCenter} /><Route path="/rapports/:id" component={ReportDetail} /><Route path="/embarcations/:id" component={VesselDetail} /><Route path="/embarcations" component={VesselsCenter} /><Route path="/bulletins" component={BulletinsPage} /><Route path="/utilisateurs" component={UsersPage} /><Route path="/audit" component={AuditPage} /><Route path="/parametres" component={Settings} /><Route path="/404" component={NotFound} /><Route component={NotFound} /></Switch>;
 }
 
 export default function App() {

@@ -4,7 +4,7 @@ const BASE_URL = "https://inference.baseten.co/v1/chat/completions";
 export const BASETEN_MODEL = "meta-models/muse-spark-open-1026";
 
 type ChatMessage = { role: "system" | "user" | "assistant"; content: unknown };
-type ChatResponse = { choices?: Array<{ message?: { content?: unknown } }> };
+type ChatResponse = { choices?: Array<{ message?: { content?: unknown; reasoning_content?: unknown } }> };
 
 function textFromContent(content: unknown): string {
   if (typeof content === "string") return content;
@@ -30,7 +30,9 @@ async function chat(messages: ChatMessage[], maxTokens = 900): Promise<string> {
       throw new TRPCError({ code: response.status === 401 ? "UNAUTHORIZED" : "BAD_GATEWAY", message: "Le service IA Baseten a refusé la demande." });
     }
     const payload = JSON.parse(body) as ChatResponse;
-    const content = textFromContent(payload.choices?.[0]?.message?.content);
+    const msg = payload.choices?.[0]?.message;
+    let content = textFromContent(msg?.content);
+    if (!content && msg?.reasoning_content) content = textFromContent(msg.reasoning_content);
     if (!content) throw new TRPCError({ code: "BAD_GATEWAY", message: "Le service IA a renvoyé une réponse vide." });
     return content;
   } catch (error) {
@@ -44,11 +46,26 @@ async function chat(messages: ChatMessage[], maxTokens = 900): Promise<string> {
 
 function extractJson<T>(raw: string): T {
   const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
+  // 1) tentative directe sur le plus grand bloc { ... }
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");
-  if (start < 0 || end <= start) throw new TRPCError({ code: "BAD_GATEWAY", message: "La réponse IA n’a pas le format attendu." });
-  try { return JSON.parse(cleaned.slice(start, end + 1)) as T; }
-  catch { throw new TRPCError({ code: "BAD_GATEWAY", message: "La réponse IA n’a pas pu être interprétée." }); }
+  if (start >= 0 && end > start) {
+    try { return JSON.parse(cleaned.slice(start, end + 1)) as T; } catch { /* suite */ }
+  }
+  // 2) extraction équilibrée : teste chaque bloc { ... } équilibré, du plus grand au plus petit
+  const candidates: string[] = [];
+  for (let i = 0; i < cleaned.length; i++) {
+    if (cleaned[i] !== "{") continue;
+    let depth = 0, inStr = false, esc = false;
+    for (let j = i; j < cleaned.length; j++) {
+      const c = cleaned[j];
+      if (inStr) { if (esc) esc = false; else if (c === "\\") esc = true; else if (c === '"') inStr = false; }
+      else { if (c === '"') inStr = true; else if (c === "{") depth++; else if (c === "}") { depth--; if (depth === 0) { candidates.push(cleaned.slice(i, j + 1)); break; } } }
+    }
+  }
+  candidates.sort((a, b) => b.length - a.length);
+  for (const c of candidates) { try { return JSON.parse(c) as T; } catch { /* suivant */ } }
+  throw new TRPCError({ code: "BAD_GATEWAY", message: "La réponse IA n’a pas pu être interprétée." });
 }
 
 export type InspectionAnalysis = {
