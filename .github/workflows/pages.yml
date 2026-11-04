@@ -1,0 +1,50 @@
+name: Deploy Pages
+
+# Publie la page vitrine (site/) sur GitHub Pages.
+#
+# Le site est entièrement statique : GitHub Pages n'exécute ni Express, ni
+# tRPC, ni MySQL. L'application complète se déploie sur un hébergeur Node.
+#
+# Activation : Settings > Pages > Source = "GitHub Actions".
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurer Pages
+        uses: actions/configure-pages@v5
+
+      - name: Préparer l'artefact
+        run: |
+          # Les sources de la vitrine sont déjà statiques : aucun build requis.
+          test -f site/index.html || { echo "site/index.html manquant"; exit 1; }
+          du -sh site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
