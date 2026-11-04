@@ -89,7 +89,7 @@ export default function InspectionDetail() {
 
           <div className="mock-card"><div className="mock-card-h"><h3 style={{ color: "#b91c1c" }}><AlertTriangle size={15} /> {t("inspd.anoms")} ({findings.length})</h3></div>
             <div style={{ padding: "0 12px 12px", overflowX: "auto" }}>{findings.length === 0 ? <EmptyState title={t("inspd.noAnom")} /> : (
-            <table className="mock-table"><thead><tr><th>N°</th><th>{t("inspd.colCat")}</th><th>{t("inspd.colIssue")}</th><th>{t("inspd.colRisk")}</th><th>{t("inspd.colStatus")}</th><th>{t("inspd.colReco")}</th></tr></thead><tbody>
+            <table className="mock-table" style={{ tableLayout: "fixed", minWidth: 680 }}><colgroup><col style={{ width: "6%" }} /><col style={{ width: "16%" }} /><col style={{ width: "40%" }} /><col style={{ width: "13%" }} /><col style={{ width: "12%" }} /><col style={{ width: "13%" }} /></colgroup><thead><tr><th>N°</th><th>{t("inspd.colCat")}</th><th>{t("inspd.colIssue")}</th><th>{t("inspd.colRisk")}</th><th>{t("inspd.colStatus")}</th><th>{t("inspd.colReco")}</th></tr></thead><tbody>
               {findings.map((f, i) => <tr key={f.id}><td>{i + 1}</td><td>{f.anomalyType}</td><td style={{ fontSize: 12 }}>{f.description}</td><td><span className={`bdg ${f.riskLevel === "critique" ? "bdg-red" : f.riskLevel === "eleve" ? "bdg-orange" : "bdg-yellow"}`}>{f.riskLevel}</span></td><td><span className="bdg bdg-gray">{f.humanStatus}</span></td><td style={{ fontSize: 12 }}>{f.recommendation ?? "-"}</td></tr>)}
             </tbody></table>)}</div>
           </div>

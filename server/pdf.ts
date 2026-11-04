@@ -151,6 +151,21 @@ function decodeImage(input: PdfImageInput): DecodedImage | null {
 
 type Page = { ops: string[]; images: number[] };
 
+const HELV = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
+const HELV_B = [278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584];
+
+export function textWidth(text: string, size: number, bold = false) {
+  const table = bold ? HELV_B : HELV;
+  let total = 0;
+  for (const char of toWinAnsi(text)) {
+    const code = char.codePointAt(0) ?? 32;
+    const width = code >= 32 && code <= 126 ? table[code - 32] : code >= 192 ? 556 : 278;
+    total += width;
+  }
+  return (total / 1000) * size;
+}
+
+
 function wrapText(text: string, size: number, width: number, bold = false): string[] {
   const charW = size * (bold ? 0.54 : 0.5);
   const max = Math.max(8, Math.floor(width / charW));
@@ -159,9 +174,17 @@ function wrapText(text: string, size: number, width: number, bold = false): stri
     const words = paragraph.split(/\s+/).filter(Boolean);
     let line = "";
     for (const word of words) {
-      if (!line) { line = word; continue; }
-      if (line.length + 1 + word.length <= max) line += " " + word;
-      else { out.push(line); line = word; }
+      const candidate = line ? `${line} ${word}` : word;
+      if (textWidth(candidate, size, bold) <= width) { line = candidate; continue; }
+      if (line) { out.push(line); line = ""; }
+      let rest = word;
+      while (textWidth(rest, size, bold) > width && rest.length > 1) {
+        let cut = rest.length;
+        while (cut > 1 && textWidth(rest.slice(0, cut), size, bold) > width) cut -= 1;
+        out.push(rest.slice(0, cut));
+        rest = rest.slice(cut);
+      }
+      line = rest;
     }
     out.push(line);
   }
@@ -186,17 +209,101 @@ class PdfDoc {
   }
 
   private draw(text: string, size: number, bold: boolean, color = "0.12 0.16 0.24") {
-    const font = bold ? "F2" : "F1";
-    this.page!.ops.push(`BT ${color} rg /${font} ${size} Tf 1 0 0 1 ${MARGIN.toFixed(2)} ${this.y.toFixed(2)} Tm (${escapePdfText(text)}) Tj ET`);
+    this.drawAt(text, MARGIN, this.y, size, bold, color);
   }
 
-  title(text: string) {
-    this.ensure(60);
-    this.y -= 26;
-    this.draw(text, 19, true, "0.03 0.08 0.16");
+  private drawAt(text: string, x: number, y: number, size: number, bold: boolean, color = "0.12 0.16 0.24") {
+    const font = bold ? "F2" : "F1";
+    this.page!.ops.push(`BT ${color} rg /${font} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${escapePdfText(text)}) Tj ET`);
+  }
+
+  private fill(x: number, y: number, w: number, h: number, color: string) {
+    this.page!.ops.push(`${color} rg ${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`);
+  }
+
+  private rule(x1: number, y: number, x2: number, color: string, width = 0.8) {
+    this.page!.ops.push(`${color} RG ${width} w ${x1.toFixed(2)} ${y.toFixed(2)} m ${x2.toFixed(2)} ${y.toFixed(2)} l S`);
+  }
+
+  banner(title: string, subtitle: string, logo: DecodedImage | null) {
+    this.newPage();
+    if (logo) {
+      const scale = Math.min(150 / logo.width, 56 / logo.height);
+      const w = logo.width * scale;
+      const h = logo.height * scale;
+      this.placeImage(logo, MARGIN, PAGE_H - MARGIN - h + 10, w, h);
+    }
+    const titleSize = 18;
+    this.drawAt(title, PAGE_W - MARGIN - textWidth(title, titleSize, true), PAGE_H - MARGIN - 16, titleSize, true, "0.03 0.08 0.16");
+    this.drawAt(subtitle, PAGE_W - MARGIN - textWidth(subtitle, 9), PAGE_H - MARGIN - 34, 9, false, "0.42 0.50 0.60");
+    this.fill(MARGIN, PAGE_H - MARGIN - 72, CONTENT_W, 2.5, "0.03 0.43 1");
+    this.y = PAGE_H - MARGIN - 92;
+  }
+
+  sectionTitle(label: string) {
+    this.ensure(44);
+    this.y -= 24;
+    this.fill(MARGIN, this.y - 2, 3, 12, "0.00 0.78 1");
+    this.drawAt(label.toUpperCase(), MARGIN + 9, this.y, 10.5, true, "0.03 0.10 0.20");
     this.y -= 10;
-    this.page!.ops.push(`${MARGIN} ${this.y.toFixed(2)} m ${(PAGE_W - MARGIN).toFixed(2)} ${this.y.toFixed(2)} l S`);
-    this.y -= 16;
+  }
+
+  metaGrid(pairs: Array<[string, string]>) {
+    const colW = CONTENT_W / 2;
+    for (let i = 0; i < pairs.length; i += 2) {
+      const row = pairs.slice(i, i + 2);
+      const heights = row.map(([, value]) => 12 + wrapText(value, 10, colW - 16).length * 12.5);
+      const rowH = Math.max(...heights, 30);
+      this.ensure(rowH);
+      this.y -= rowH;
+      row.forEach(([label, value], col) => {
+        const x = MARGIN + col * colW;
+        this.drawAt(label.toUpperCase(), x, this.y + rowH - 11, 7.5, true, "0.48 0.56 0.66");
+        let lineY = this.y + rowH - 23;
+        for (const line of wrapText(value, 10, colW - 16)) {
+          this.drawAt(line, x, lineY, 10, false, "0.10 0.16 0.26");
+          lineY -= 12.5;
+        }
+      });
+      this.rule(MARGIN, this.y + 2, PAGE_W - MARGIN, "0.90 0.93 0.96", 0.5);
+    }
+    this.y -= 8;
+  }
+
+  table(headers: string[], widths: number[], rows: string[][], fontSize = 8.5) {
+    const padding = 6;
+    const lineHeight = fontSize * 1.3;
+    const rowHeight = (cells: string[]) =>
+      Math.max(...cells.map((cell, i) => wrapText(cell, fontSize, widths[i] - padding * 2).length)) * lineHeight + 8;
+    const drawHeader = () => {
+      this.ensure(34);
+      this.y -= 20;
+      this.fill(MARGIN, this.y, CONTENT_W, 20, "0.03 0.10 0.20");
+      let x = MARGIN;
+      headers.forEach((header, index) => {
+        this.drawAt(header.toUpperCase(), x + padding, this.y + 6.5, 7.5, true, "1 1 1");
+        x += widths[index];
+      });
+      this.y -= 2;
+    };
+    drawHeader();
+    rows.forEach((cells, rowIndex) => {
+      const height = rowHeight(cells);
+      if (this.y - height < MARGIN + 44) drawHeader();
+      this.y -= height;
+      if (rowIndex % 2 === 1) this.fill(MARGIN, this.y, CONTENT_W, height, "0.96 0.97 0.99");
+      let x = MARGIN;
+      cells.forEach((cell, index) => {
+        let lineY = this.y + height - 12;
+        for (const line of wrapText(cell, fontSize, widths[index] - padding * 2)) {
+          this.drawAt(line, x + padding, lineY, fontSize, false, "0.10 0.16 0.26");
+          lineY -= lineHeight;
+        }
+        x += widths[index];
+      });
+      this.rule(MARGIN, this.y, PAGE_W - MARGIN, "0.90 0.93 0.96", 0.5);
+    });
+    this.y -= 8;
   }
 
   heading(text: string) {
@@ -224,6 +331,33 @@ class PdfDoc {
     this.draw(`${label} ${value}`, 10, false, "0.20 0.30 0.42");
   }
 
+  private placeImage(decoded: DecodedImage, x: number, y: number, w: number, h: number) {
+    this.page!.ops.push(`q ${w.toFixed(2)} 0 0 ${h.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)} cm /Im${this.images.length} Do Q`);
+    this.page!.images.push(this.images.length);
+    this.images.push(decoded);
+  }
+
+  photoGrid(images: PdfImageInput[]) {
+    const gap = 14;
+    const cellW = (CONTENT_W - gap) / 2;
+    const cellH = 168;
+    for (let i = 0; i < images.length; i += 2) {
+      this.ensure(cellH + 36);
+      this.y -= cellH + 10;
+      images.slice(i, i + 2).forEach((img, col) => {
+        const decoded = decodeImage(img);
+        if (!decoded) return;
+        const scale = Math.min(cellW / decoded.width, cellH / decoded.height);
+        const w = decoded.width * scale;
+        const h = decoded.height * scale;
+        const x = MARGIN + col * (cellW + gap);
+        this.placeImage(decoded, x, this.y + (cellH - h), w, h);
+        this.drawAt(img.caption ?? "Photo", x, this.y - 12, 8, false, "0.40 0.48 0.58");
+      });
+      this.y -= 14;
+    }
+  }
+
   image(img: PdfImageInput) {
     const decoded = decodeImage(img);
     if (!decoded) {
@@ -236,9 +370,7 @@ class PdfDoc {
     this.ensure(h + 32);
     this.y -= h + 6;
     const x = MARGIN + (CONTENT_W - w) / 2;
-    this.page!.ops.push(`q ${w.toFixed(2)} 0 0 ${h.toFixed(2)} ${x.toFixed(2)} ${this.y.toFixed(2)} cm /Im${this.images.length} Do Q`);
-    this.page!.images.push(this.images.length);
-    this.images.push(decoded);
+    this.placeImage(decoded, x, this.y, w, h);
     if (decoded.caption) {
       this.y -= 14;
       this.draw(decoded.caption, 9, false, "0.35 0.45 0.55");
@@ -249,9 +381,13 @@ class PdfDoc {
   build(): Buffer {
     if (!this.pages.length) this.newPage();
     const total = this.pages.length;
+    const footerY = MARGIN - 20;
+    const brand = "NaviGarde IA  -  Securite maritime  -  Benin";
     this.pages.forEach((page, index) => {
-      page.ops.push(`BT 0.45 0.55 0.65 rg /F1 8 Tf 1 0 0 1 ${MARGIN} ${(MARGIN - 20).toFixed(2)} Tm (NaviGarde IA - Page ${index + 1} / ${total}) Tj ET`);
-      page.ops.push(`${MARGIN} ${(MARGIN - 32).toFixed(2)} m ${(PAGE_W - MARGIN).toFixed(2)} ${(MARGIN - 32).toFixed(2)} l 0.85 0.89 0.94 RG S`);
+      const pageLabel = `Page ${index + 1} / ${total}`;
+      page.ops.push(`BT 0.42 0.50 0.60 rg /F1 7.5 Tf 1 0 0 1 ${MARGIN} ${footerY.toFixed(2)} Tm (${escapePdfText(brand)}) Tj ET`);
+      page.ops.push(`BT 0.42 0.50 0.60 rg /F1 7.5 Tf 1 0 0 1 ${(PAGE_W - MARGIN - textWidth(pageLabel, 7.5)).toFixed(2)} ${footerY.toFixed(2)} Tm (${escapePdfText(pageLabel)}) Tj ET`);
+      page.ops.push(`${MARGIN} ${(MARGIN - 30).toFixed(2)} m ${(PAGE_W - MARGIN).toFixed(2)} ${(MARGIN - 30).toFixed(2)} l 0.85 0.89 0.94 RG 0.6 w S`);
     });
     const objects: Array<{ id: number; head: string; stream?: Buffer }> = [];
     const imageBase = 5 + total * 2;
@@ -307,28 +443,34 @@ export type PdfSection = { heading?: string; lines?: string[] };
 export type InspectionPdfModel = {
   title: string;
   subtitle?: string;
+  logo?: PdfImageInput | null;
   meta?: Array<[string, string]>;
   sections?: PdfSection[];
+  tables?: Array<{ heading?: string; headers: string[]; widths: number[]; rows: string[][] }>;
   images?: Array<PdfImageInput | null>;
   footerNote?: string;
 };
 
 export function buildInspectionPdf(model: InspectionPdfModel): Buffer {
   const doc = new PdfDoc();
-  doc.title(model.title);
-  if (model.subtitle) doc.paragraph(model.subtitle, 10, false, "0.35 0.45 0.55");
-  for (const [label, value] of model.meta ?? []) doc.keyValue(`${label} :`, value);
+  const logo = model.logo ? decodeImage(model.logo) : null;
+  doc.banner(model.title, model.subtitle ?? "", logo);
+  if (model.meta?.length) doc.metaGrid(model.meta);
   for (const section of model.sections ?? []) {
-    if (section.heading) doc.heading(section.heading);
+    if (section.heading) doc.sectionTitle(section.heading);
     for (const line of section.lines ?? []) doc.paragraph(line);
   }
   const images = (model.images ?? []).filter((img): img is PdfImageInput => Boolean(img));
+  for (const table of model.tables ?? []) {
+    if (table.heading) doc.sectionTitle(table.heading);
+    doc.table(table.headers, table.widths, table.rows);
+  }
   if (images.length) {
-    doc.heading(`PHOTOS (${images.length})`);
-    images.forEach((img, index) => doc.image({ ...img, caption: img.caption ?? `Photo ${index + 1}` }));
+    doc.sectionTitle(`Photos (${images.length})`);
+    doc.photoGrid(images.map((img, index) => ({ ...img, caption: img.caption ?? `Photo ${index + 1}` })));
   }
   if (model.footerNote) {
-    doc.heading("VALIDATION HUMAINE");
+    doc.sectionTitle("Validation humaine");
     doc.paragraph(model.footerNote, 9, false, "0.30 0.40 0.50");
   }
   return doc.build();

@@ -1,6 +1,21 @@
 import { getInspection, getReport, getVessel, listInspectionFindings, listInspectionImages } from "./db";
 import { buildInspectionPdf, type PdfImageInput } from "./pdf";
 import { storageRead } from "./storage";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
+let logoCache: Buffer | null | undefined;
+async function loadLogo(): Promise<Buffer | null> {
+  if (logoCache !== undefined) return logoCache;
+  for (const candidate of ["server/assets/logo.jpg", "client/public/logo-icon.png", "public/logo-icon.png", "dist/public/logo-icon.png"]) {
+    try {
+      logoCache = await readFile(path.resolve(process.cwd(), candidate));
+      return logoCache;
+    } catch {}
+  }
+  logoCache = null;
+  return null;
+}
 
 export async function renderReportPdf(reportId: number): Promise<Buffer> {
   const report = await getReport(reportId);
@@ -41,19 +56,23 @@ export async function renderReportPdf(reportId: number): Promise<Buffer> {
     `Confiance IA : ${inspection?.confidence ?? 0}% - Fournisseur : ${inspection?.analysisProvider ?? "mode local"}`,
   ];
 
-  const findingLines = findings.length
-    ? findings.map((f, index) => `${index + 1}. [${f.riskLevel}] ${f.anomalyType} - ${f.description}${f.recommendation ? ` (recommandation : ${f.recommendation})` : ""}`)
-    : ["Aucune anomalie enregistree pour cette inspection."];
-
   return buildInspectionPdf({
     title: "RAPPORT D'INSPECTION",
     subtitle: `NaviGarde IA - ${report.reference} - version ${report.version}`,
+    logo: (await loadLogo()) ? { data: (await loadLogo())! } : null,
     meta,
     sections: [
       { heading: "SYNTHESE", lines: [String(report.content ?? "").slice(0, 4000)] },
       { heading: "ANALYSE IA", lines: aiLines },
-      { heading: `ANOMALIES (${findings.length})`, lines: findingLines },
     ],
+    tables: [{
+      heading: `Anomalies (${findings.length})`,
+      headers: ["#", "Categorie", "Description", "Risque", "Statut"],
+      widths: [24, 92, 227, 70, 86],
+      rows: findings.length
+        ? findings.map((f, index) => [String(index + 1), f.anomalyType, f.description, f.riskLevel, f.humanStatus])
+        : [["-", "-", "Aucune anomalie enregistree", "-", "-"]],
+    }],
     images: photoInputs,
     footerNote: "L'IA propose, l'humain decide. Ce rapport doit etre relu et valide par un superviseur avant toute decision operationnelle.",
   });
