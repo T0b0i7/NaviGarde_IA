@@ -24,7 +24,7 @@ async function startServer() {
         defaultSrc: ["'self'"],
         baseUri: ["'self'"],
         fontSrc: ["'self'", "data:"],
-        imgSrc: ["'self'", "data:", "blob:"],
+        imgSrc: ["'self'", "data:", "blob:", "https://images.unsplash.com"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         connectSrc: ["'self'", "blob:", "data:"],
