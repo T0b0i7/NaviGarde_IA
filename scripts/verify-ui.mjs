@@ -110,7 +110,16 @@ for (const vp of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
         if (cs.position === "fixed" || cs.visibility === "hidden" || cs.display === "none") return;
         const r = el.getBoundingClientRect();
         if (r.width === 0 || r.height === 0) return;
-        if (r.right > vw + 2) {
+        const inScroller = (node) => {
+          let cur = node.parentElement;
+          while (cur && cur !== document.body) {
+            const ox = getComputedStyle(cur).overflowX;
+            if (ox === "auto" || ox === "scroll") return true;
+            cur = cur.parentElement;
+          }
+          return false;
+        };
+        if (r.right > vw + 2 && !inScroller(el)) {
           offenders.push({
             tag: el.tagName.toLowerCase(),
             cls: (el.className || "").toString().slice(0, 60),

@@ -1,0 +1,23 @@
+import { chromium } from "playwright-core";
+const BASE = "http://localhost:3000";
+const b = await chromium.launch({ executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
+const ctx = await b.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 2 });
+const p = await ctx.newPage();
+await p.goto(BASE + "/connexion", { waitUntil: "networkidle" });
+await p.evaluate(() => localStorage.setItem("navigarde_theme", "dark"));
+await p.reload({ waitUntil: "networkidle" });
+await p.fill("#login-email", "admin@navigarde.bj");
+await p.fill("#login-password", "Admin12345678!");
+await p.click('button[type="submit"]');
+await p.waitForURL(BASE + "/", { timeout: 20000 });
+await p.waitForTimeout(2200);
+await p.screenshot({ path: "artifacts/midnight/crop-sidebar.png", clip: { x: 0, y: 820, width: 300, height: 180 } });
+await p.screenshot({ path: "artifacts/midnight/crop-table.png", clip: { x: 300, y: 720, width: 800, height: 220 } });
+const out = await p.evaluate(() => {
+  const el = document.elementFromPoint(880, 758);
+  const c = el ? getComputedStyle(el) : null;
+  return { t: el?.tagName, c: String(el?.className), bg: c?.backgroundColor, col: c?.color, bd: c?.borderColor };
+});
+console.log(JSON.stringify(out));
+await b.close();
+process.exit(0);

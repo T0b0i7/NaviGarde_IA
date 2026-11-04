@@ -29,6 +29,39 @@
   --ng-radius: 12px;
   --ng-radius-lg: 16px;
   --ng-transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Semantic aliases — rethemed per mode (see theme-midnight.css) */
+  --ng-surface: #ffffff;
+  --ng-ink: #0a2a5e;
+  --ng-body: #143859;
+  --ng-soft: #5b7a96;
+  --ng-faint: #7b93a8;
+  --ng-faint-2: #8aa3bb;
+  --ng-link: #0d7fdd;
+  --ng-line: #d9e6f2;
+  --ng-line-2: #e3ecf4;
+  --ng-line-soft: #eef3f8;
+  --ng-grid: #eef2f6;
+  --ng-tint: #eef5fb;
+  --ng-tint-2: #eaf4fc;
+  --ng-chip: #eef2f6;
+  --ng-ok: #16a34a;
+  --ng-ok-strong: #15803d;
+  --ng-ok-bg: #dcfce7;
+  --ng-warn: #f59e0b;
+  --ng-warn-bg: #fef3c7;
+  --ng-high: #f97316;
+  --ng-crit: #ef4444;
+  --ng-crit-2: #dc2626;
+  --ng-crit-strong: #b91c1c;
+  --ng-crit-bg: #fef2f2;
+  --ng-crit-bg-2: #fee2e2;
+  --ng-crit-border: #fecaca;
+  --ng-info: #2563eb;
+  --ng-info-2: #0ea5e9;
+  --ng-info-3: #60a5fa;
+  --ng-info-bg: #e0f2fe;
+  --ng-purple: #7c3aed;
 }
 
 /* Reset et base */

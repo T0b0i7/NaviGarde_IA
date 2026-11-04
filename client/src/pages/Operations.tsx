@@ -77,20 +77,20 @@ export function AlertsPage() {
       <div className="mock-page" style={{ gridTemplateColumns: "minmax(0,1fr) 300px" }}>
         <div className="mock-main">
           <div className="mock-kpis">
-            <button className="mock-kpi" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => { setTab("Urgente"); setPage(1); }}><div className="mock-kpi-ic" style={{ background: "#ef4444" }}><AlertTriangle size={20} /></div><div><strong>{kpis.urg}</strong><small>{t("al.kUrg")}</small></div><ChevronRight size={16} style={{ marginLeft: "auto", color: "#8aa3bb" }} /></button>
-            <button className="mock-kpi" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => { setTab("Importante"); setPage(1); }}><div className="mock-kpi-ic" style={{ background: "#f97316" }}>!</div><div><strong>{kpis.imp}</strong><small>{t("al.kImp")}</small></div><ChevronRight size={16} style={{ marginLeft: "auto", color: "#8aa3bb" }} /></button>
-            <button className="mock-kpi" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => { setTab("Moyenne"); setPage(1); }}><div className="mock-kpi-ic" style={{ background: "#f59e0b" }}><Clock3 size={20} /></div><div><strong>{kpis.moy}</strong><small>{t("al.kMid")}</small></div><ChevronRight size={16} style={{ marginLeft: "auto", color: "#8aa3bb" }} /></button>
-            <button className="mock-kpi" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => { setTab("Résolue"); setPage(1); }}><div className="mock-kpi-ic" style={{ background: "#64748b" }}><Check size={20} /></div><div><strong>{kpis.res}</strong><small>{t("al.kRes")}</small></div><ChevronRight size={16} style={{ marginLeft: "auto", color: "#8aa3bb" }} /></button>
+            <button className="mock-kpi" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => { setTab("Urgente"); setPage(1); }}><div className="mock-kpi-ic" style={{ background: "var(--ng-crit)" }}><AlertTriangle size={20} /></div><div><strong>{kpis.urg}</strong><small>{t("al.kUrg")}</small></div><ChevronRight size={16} style={{ marginLeft: "auto", color: "var(--ng-faint-2)" }} /></button>
+            <button className="mock-kpi" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => { setTab("Importante"); setPage(1); }}><div className="mock-kpi-ic" style={{ background: "var(--ng-high)" }}>!</div><div><strong>{kpis.imp}</strong><small>{t("al.kImp")}</small></div><ChevronRight size={16} style={{ marginLeft: "auto", color: "var(--ng-faint-2)" }} /></button>
+            <button className="mock-kpi" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => { setTab("Moyenne"); setPage(1); }}><div className="mock-kpi-ic" style={{ background: "var(--ng-warn)" }}><Clock3 size={20} /></div><div><strong>{kpis.moy}</strong><small>{t("al.kMid")}</small></div><ChevronRight size={16} style={{ marginLeft: "auto", color: "var(--ng-faint-2)" }} /></button>
+            <button className="mock-kpi" style={{ textAlign: "left", cursor: "pointer" }} onClick={() => { setTab("Résolue"); setPage(1); }}><div className="mock-kpi-ic" style={{ background: "var(--ng-soft)" }}><Check size={20} /></div><div><strong>{kpis.res}</strong><small>{t("al.kRes")}</small></div><ChevronRight size={16} style={{ marginLeft: "auto", color: "var(--ng-faint-2)" }} /></button>
           </div>
 
           <div className="mock-card">
             <div style={{ display: "flex", gap: 8, padding: "12px 14px", flexWrap: "wrap", alignItems: "center" }}>
               {([["Toutes", t("al.tabAll"), (q.data ?? []).length], ["Urgente", t("al.tabUrg"), kpis.urg], ["Importante", t("al.tabImp"), kpis.imp], ["Moyenne", t("al.tabMid"), kpis.moy], ["Résolue", t("al.tabRes"), kpis.res]] as const).map(([key, label, n]) => {
                 const on = tab === key;
-                return <button key={key} onClick={() => { setTab(key as never); setPage(1); }} style={{ height: 36, padding: "0 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, background: on ? "#0d7fdd" : "#eef5fb", color: on ? "#fff" : "#0a2a5e", display: "inline-flex", gap: 7, alignItems: "center" }}>{label} <span style={{ background: on ? "rgba(255,255,255,0.3)" : "#d9e6f2", borderRadius: 999, fontSize: 11, padding: "1px 7px" }}>{n}</span></button>;
+                return <button key={key} onClick={() => { setTab(key as never); setPage(1); }} style={{ height: 36, padding: "0 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, background: on ? "var(--ng-link)" : "var(--ng-tint)", color: on ? "var(--ng-surface)" : "var(--ng-ink)", display: "inline-flex", gap: 7, alignItems: "center" }}>{label} <span style={{ background: on ? "rgba(255,255,255,0.3)" : "var(--ng-line)", borderRadius: 999, fontSize: 11, padding: "1px 7px" }}>{n}</span></button>;
               })}
               <span style={{ flex: 1 }} />
-              <span style={{ fontSize: 12, color: "#5b7a96" }}>{t("al.sortBy")} <strong>{t("al.newest")}</strong></span>
+              <span style={{ fontSize: 12, color: "var(--ng-soft)" }}>{t("al.sortBy")} <strong>{t("al.newest")}</strong></span>
               <ScopeSwitch value={scope} onChange={(v) => { setScope(v); setPage(1); setSelId(null); }} />
               {canManage && <button className="btn-blue" style={{ height: 38, fontSize: 12.5, padding: "0 14px" }} onClick={() => setShowCreate(true)}><Plus size={14} /> {t("al.new")}</button>}
             </div>
@@ -100,14 +100,14 @@ export function AlertsPage() {
                 : paged.length === 0 ? (
                   <EmptyState title={t("al.nominal")} hint={tab !== "Toutes" || typeF !== "__ALL__" ? t("c.noResultsHint") : undefined} action={canManage ? <button className="btn-blue" style={{ padding: "0 16px" }} onClick={() => setShowCreate(true)}><Plus size={14} /> {t("al.new")}</button> : undefined} />
               ) : paged.map((a) => { const v = a.vesselId ? vesselById.get(a.vesselId) : undefined; const lv = levelOf(a); return (
-                <div key={a.id} onClick={() => setSelId(a.id)} style={{ display: "flex", gap: 12, alignItems: "center", padding: "12px 14px", borderTop: "1px solid #eef3f8", cursor: "pointer", background: sel?.id === a.id ? "#eaf4fc" : "#fff" }}>
-                  <span style={{ width: 38, height: 38, borderRadius: "50%", display: "grid", placeItems: "center", color: "#fff", background: lv === "Urgente" ? "#ef4444" : lv === "Importante" ? "#f97316" : lv === "Moyenne" ? "#f59e0b" : "#64748b", flexShrink: 0 }}>{lv === "Résolue" ? <Check size={17} /> : lv === "Moyenne" ? <Clock3 size={17} /> : <AlertTriangle size={17} />}</span>
+                <div key={a.id} onClick={() => setSelId(a.id)} style={{ display: "flex", gap: 12, alignItems: "center", padding: "12px 14px", borderTop: "1px solid var(--ng-line-soft)", cursor: "pointer", background: sel?.id === a.id ? "var(--ng-tint-2)" : "var(--ng-surface)" }}>
+                  <span style={{ width: 38, height: 38, borderRadius: "50%", display: "grid", placeItems: "center", color: "#fff", background: lv === "Urgente" ? "var(--ng-crit)" : lv === "Importante" ? "var(--ng-high)" : lv === "Moyenne" ? "var(--ng-warn)" : "var(--ng-soft)", flexShrink: 0 }}>{lv === "Résolue" ? <Check size={17} /> : lv === "Moyenne" ? <Clock3 size={17} /> : <AlertTriangle size={17} />}</span>
                   <img src="/boat-inspection.jpg" alt="" style={{ width: 62, height: 44, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}><strong style={{ fontSize: 13.5 }}>{a.title}</strong><div style={{ fontSize: 11.5, color: "#5b7a96" }}>{v ? `${v.name ?? ""} N°${v.registrationNumber}` : "-"}</div>
-                    <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#0d7fdd", marginTop: 3 }}><span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}><MapPin size={11} /> {a.place}</span><span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}><CalendarDays size={11} /> {dt(a.createdAt)}</span></div></div>
+                  <div style={{ flex: 1, minWidth: 0 }}><strong style={{ fontSize: 13.5 }}>{a.title}</strong><div style={{ fontSize: 11.5, color: "var(--ng-soft)" }}>{v ? `${v.name ?? ""} N°${v.registrationNumber}` : "-"}</div>
+                    <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--ng-link)", marginTop: 3 }}><span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}><MapPin size={11} /> {a.place}</span><span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}><CalendarDays size={11} /> {dt(a.createdAt)}</span></div></div>
                   <span className={`bdg ${lv === "Urgente" ? "bdg-red" : lv === "Importante" ? "bdg-orange" : lv === "Moyenne" ? "bdg-yellow" : "bdg-blue"}`}>{lvlLabel(lv)}</span>
                   {canManage && <ArchiveButton archived={scope === "archived"} label={a.title} onConfirm={() => (scope === "archived" ? restoreMut.mutateAsync({ id: a.id }) : archiveMut.mutateAsync({ id: a.id }))} />}
-                  <ChevronRight size={16} color="#0d7fdd" />
+                  <ChevronRight size={16} color="var(--ng-link)" />
                 </div>); })}
             </div>
             <div className="mock-pager"><small>{t("al.showing", { a: paged.length ? (safe - 1) * PAGE + 1 : 0, b: (safe - 1) * PAGE + paged.length, n: rows.length })}</small>
@@ -127,12 +127,12 @@ export function AlertsPage() {
           </div>
 
           <div className="mock-detail">
-            <h3><AlertTriangle size={15} color="#dc2626" /> {t("al.quickView")}</h3>
-            {!sel ? <div style={{ fontSize: 13, color: "#7b93a8" }}>{t("al.select")}</div> : (() => { const v = sel.vesselId ? vesselById.get(sel.vesselId) : undefined; const lv = levelOf(sel); return (
-              <><div style={{ display: "flex", gap: 10 }}><img src="/boat-inspection.jpg" alt="" style={{ width: 84, height: 64, objectFit: "cover", borderRadius: 10 }} /><div><strong style={{ fontSize: 13, color: lv === "Urgente" ? "#b91c1c" : "#0a2a5e" }}>{sel.title}</strong><div style={{ fontSize: 11, color: "#7b93a8" }}>{v ? `${v.name ?? ""} N°${v.registrationNumber}` : "-"}</div><span className={`bdg ${lv === "Urgente" ? "bdg-red" : lv === "Importante" ? "bdg-orange" : "bdg-yellow"}`} style={{ marginTop: 4 }}>{lvlLabel(lv)}</span></div></div>
-                <div style={{ fontSize: 12, color: "#5b7a96" }}>{srcLabel(sel.source)} · {sel.place}</div>
-                <div style={{ fontSize: 12, color: "#5b7a96" }}>{sel.description || ""}</div>
-                <div style={{ fontSize: 11.5, color: "#7b93a8" }}>{dt(sel.createdAt)}</div>
+            <h3><AlertTriangle size={15} color="var(--ng-crit-2)" /> {t("al.quickView")}</h3>
+            {!sel ? <div style={{ fontSize: 13, color: "var(--ng-faint)" }}>{t("al.select")}</div> : (() => { const v = sel.vesselId ? vesselById.get(sel.vesselId) : undefined; const lv = levelOf(sel); return (
+              <><div style={{ display: "flex", gap: 10 }}><img src="/boat-inspection.jpg" alt="" style={{ width: 84, height: 64, objectFit: "cover", borderRadius: 10 }} /><div><strong style={{ fontSize: 13, color: lv === "Urgente" ? "var(--ng-crit-strong)" : "var(--ng-ink)" }}>{sel.title}</strong><div style={{ fontSize: 11, color: "var(--ng-faint)" }}>{v ? `${v.name ?? ""} N°${v.registrationNumber}` : "-"}</div><span className={`bdg ${lv === "Urgente" ? "bdg-red" : lv === "Importante" ? "bdg-orange" : "bdg-yellow"}`} style={{ marginTop: 4 }}>{lvlLabel(lv)}</span></div></div>
+                <div style={{ fontSize: 12, color: "var(--ng-soft)" }}>{srcLabel(sel.source)} · {sel.place}</div>
+                <div style={{ fontSize: 12, color: "var(--ng-soft)" }}>{sel.description || ""}</div>
+                <div style={{ fontSize: 11.5, color: "var(--ng-faint)" }}>{dt(sel.createdAt)}</div>
                 {canManage && sel.status !== "resolue" && <button className="btn-blue" disabled={update.isPending} onClick={() => update.mutate({ id: sel.id, patch: { status: sel.status === "nouvelle" ? "en_cours" : "resolue" } })}>{sel.status === "nouvelle" ? t("al.take") : t("al.resolve")} →</button>}
                 <button className="btn-outline-blue" onClick={() => navigate("/inspections/new")}>{t("al.seeDetail")} →</button></>); })()}
           </div>
@@ -169,12 +169,12 @@ export function AlertsPage() {
 export function ReportsPage() {
   const [, navigate] = useLocation();
   useMemo(() => { navigate("/rapports"); }, []);
-  return <AppShell><div style={{ padding: "3rem", textAlign: "center", color: "#7b93a8" }}>…</div></AppShell>;
+  return <AppShell><div style={{ padding: "3rem", textAlign: "center", color: "var(--ng-faint)" }}>…</div></AppShell>;
 }
 export function VesselsPage() {
   const [, navigate] = useLocation();
   useMemo(() => { navigate("/embarcations"); }, []);
-  return <AppShell><div style={{ padding: "3rem", textAlign: "center", color: "#7b93a8" }}>…</div></AppShell>;
+  return <AppShell><div style={{ padding: "3rem", textAlign: "center", color: "var(--ng-faint)" }}>…</div></AppShell>;
 }
 
 export function AuditPage() {
@@ -202,8 +202,8 @@ export function AuditPage() {
     <AppShell>
       <h1 className="mock-h1">{t("au.title")}</h1><p className="mock-sub">{t("au.sub", { n: rows.length })}</p><div style={{ height: 14 }} />
       <div className="mock-card"><div className="mock-card-b" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <div style={{ position: "relative", flex: "1 1 280px" }}><Search size={16} style={{ position: "absolute", left: 12, top: 13, color: "#7b93a8" }} /><input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t("au.searchPh")} style={{ width: "100%", height: 44, border: "1.5px solid #d9e6f2", borderRadius: 10, padding: "0 12px 0 36px", fontSize: 13 }} /></div>
-        <select value={actionF} onChange={(e) => setActionF(e.target.value)} style={{ height: 44, border: "1.5px solid #d9e6f2", borderRadius: 10, padding: "0 12px", fontSize: 13, fontWeight: 700, color: "#0a2a5e" }}><option value="__ALL__">{t("c.all")}</option>{actions.map((a) => <option key={a} value={a}>{a}</option>)}</select>
+        <div style={{ position: "relative", flex: "1 1 280px" }}><Search size={16} style={{ position: "absolute", left: 12, top: 13, color: "var(--ng-faint)" }} /><input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t("au.searchPh")} style={{ width: "100%", height: 44, border: "1.5px solid var(--ng-line)", borderRadius: 10, padding: "0 12px 0 36px", fontSize: 13 }} /></div>
+        <select value={actionF} onChange={(e) => setActionF(e.target.value)} style={{ height: 44, border: "1.5px solid var(--ng-line)", borderRadius: 10, padding: "0 12px", fontSize: 13, fontWeight: 700, color: "var(--ng-ink)" }}><option value="__ALL__">{t("c.all")}</option>{actions.map((a) => <option key={a} value={a}>{a}</option>)}</select>
       </div>
       <div style={{ padding: "0 18px 18px" }}>{q.isLoading ? <TableSkeleton rows={6} cols={3} />
         : q.isError ? <ErrorState message={q.error.message} onRetry={() => q.refetch()} />
@@ -212,10 +212,10 @@ export function AuditPage() {
         <button key={it.id} type="button" onClick={() => setSelected(it.id)} className="audit-row">
           <span className="audit-ic"><History size={15} /></span>
           <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-            <span style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}><strong style={{ fontSize: 13 }}>{it.action}</strong><small style={{ fontSize: 11, color: "#7b93a8" }}>{new Date(it.createdAt).toLocaleString(locale)}</small></span>
-            <span style={{ display: "block", fontSize: 12, color: "#7b93a8" }}>{it.entityLabel ?? `${it.entityType}${it.entityId ? ` #${it.entityId}` : ""}`} · {it.userName ?? `${t("au.user")} #${it.userId ?? "-"}`}</span>
+            <span style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}><strong style={{ fontSize: 13 }}>{it.action}</strong><small style={{ fontSize: 11, color: "var(--ng-faint)" }}>{new Date(it.createdAt).toLocaleString(locale)}</small></span>
+            <span style={{ display: "block", fontSize: 12, color: "var(--ng-faint)" }}>{it.entityLabel ?? `${it.entityType}${it.entityId ? ` #${it.entityId}` : ""}`} · {it.userName ?? `${t("au.user")} #${it.userId ?? "-"}`}</span>
           </span>
-          <ChevronRight size={16} color="#7b93a8" />
+          <ChevronRight size={16} color="var(--ng-faint)" />
         </button>))}</div>
       </div>
 
@@ -234,7 +234,7 @@ export function AuditPage() {
                 <div className="audit-kv"><span>{t("au.user")}</span><strong>{detailQ.data.userName ?? `#${detailQ.data.userId ?? "-"}`}{detailQ.data.userEmail ? ` · ${detailQ.data.userEmail}` : ""}{detailQ.data.userRole ? ` (${detailQ.data.userRole})` : ""}</strong></div>
                 <div className="audit-kv"><span>{t("au.ip")}</span><strong>{detailQ.data.ip ?? "-"}</strong></div>
                 <div className="audit-kv"><span>{t("au.agent")}</span><strong style={{ overflowWrap: "anywhere" }}>{detailQ.data.userAgent ?? "-"}</strong></div>
-                <div><span style={{ fontSize: 11, fontWeight: 800, color: "#7b93a8", textTransform: "uppercase", letterSpacing: 0.4 }}>{t("au.metadata")}</span>
+                <div><span style={{ fontSize: 11, fontWeight: 800, color: "var(--ng-faint)", textTransform: "uppercase", letterSpacing: 0.4 }}>{t("au.metadata")}</span>
                   <pre className="audit-json">{pretty(detailQ.data.metadata) || "-"}</pre>
                   {detailQ.data.metadata ? <button className="ng-modal-ghost" style={{ marginTop: 8 }} onClick={() => { navigator.clipboard?.writeText(pretty(detailQ.data!.metadata)); toast.success(t("c.copied")); }}><Copy size={13} /> {t("c.copy")}</button> : null}
                 </div>
@@ -281,25 +281,25 @@ export function UsersPage() {
   return (
     <AppShell>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
-        <div><h1 className="mock-h1"><Users size={26} color="#0d7fdd" style={{ verticalAlign: "-4px", marginRight: 8 }} />{t("us.title")}</h1><p className="mock-sub">{t("us.sub")}</p></div>
+        <div><h1 className="mock-h1"><Users size={26} color="var(--ng-link)" style={{ verticalAlign: "-4px", marginRight: 8 }} />{t("us.title")}</h1><p className="mock-sub">{t("us.sub")}</p></div>
         <button className="btn-blue" style={{ padding: "0 18px" }} onClick={() => setShow(true)}><Plus size={16} /> {t("us.add")}</button>
       </div>
       <div style={{ height: 14 }} />
 
       {listQ.isLoading ? <div className="mock-kpis" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>{Array.from({ length: 5 }).map((_, i) => <KpiSkeleton key={i} />)}</div> : (
       <div className="mock-kpis" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
-        <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#2563eb" }}><Users size={20} /></div><div><small>{t("us.kTotal")}</small><strong>{kpis.total}</strong></div></div>
-        <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#7c3aed" }}><ShieldCheck size={20} /></div><div><small>{t("us.kAdmin")}</small><strong>{kpis.admin}</strong></div></div>
-        <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#0d9488" }}><CheckCheck size={20} /></div><div><small>{t("us.kSup")}</small><strong>{kpis.sup}</strong></div></div>
-        <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#f59e0b" }}><Bell size={20} /></div><div><small>{t("us.kAgent")}</small><strong>{kpis.agent}</strong></div></div>
-        <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#0ea5e9" }}><Eye size={20} /></div><div><small>{t("us.kObs")}</small><strong>{kpis.obs}</strong></div></div>
+        <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-info)" }}><Users size={20} /></div><div><small>{t("us.kTotal")}</small><strong>{kpis.total}</strong></div></div>
+        <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-purple)" }}><ShieldCheck size={20} /></div><div><small>{t("us.kAdmin")}</small><strong>{kpis.admin}</strong></div></div>
+        <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-teal)" }}><CheckCheck size={20} /></div><div><small>{t("us.kSup")}</small><strong>{kpis.sup}</strong></div></div>
+        <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-warn)" }}><Bell size={20} /></div><div><small>{t("us.kAgent")}</small><strong>{kpis.agent}</strong></div></div>
+        <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-info-2)" }}><Eye size={20} /></div><div><small>{t("us.kObs")}</small><strong>{kpis.obs}</strong></div></div>
       </div>)}
       <div style={{ height: 12 }} />
 
       <div className="mock-card" style={{ marginBottom: 12 }}><div className="mock-card-b" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <div style={{ position: "relative", flex: "1 1 260px" }}><Search size={16} style={{ position: "absolute", left: 12, top: 13, color: "#7b93a8" }} /><input value={q} onChange={(ev) => { setQ(ev.target.value); setPage(1); }} placeholder={t("us.searchPh")} style={{ width: "100%", height: 44, border: "1.5px solid #d9e6f2", borderRadius: 10, padding: "0 12px 0 36px", fontSize: 13 }} /></div>
-        <select value={roleF} onChange={(ev) => { setRoleF(ev.target.value); setPage(1); }} style={{ height: 44, border: "1.5px solid #d9e6f2", borderRadius: 10, fontSize: 13, padding: "0 12px" }}><option value="__ALL__">{t("us.allRoles")}</option><option value="admin">{t("us.rAdmin")}</option><option value="supervisor">{t("us.rSup")}</option><option value="agent">{t("us.rAgent")}</option><option value="observer">{t("us.rObs")}</option></select>
-        <select value={statusF} onChange={(ev) => { setStatusF(ev.target.value); setPage(1); }} style={{ height: 44, border: "1.5px solid #d9e6f2", borderRadius: 10, fontSize: 13, padding: "0 12px" }}><option value="__ALL__">{t("us.allStatus")}</option><option value="on">{t("c.active")}</option><option value="off">{t("c.inactive")}</option></select>
+        <div style={{ position: "relative", flex: "1 1 260px" }}><Search size={16} style={{ position: "absolute", left: 12, top: 13, color: "var(--ng-faint)" }} /><input value={q} onChange={(ev) => { setQ(ev.target.value); setPage(1); }} placeholder={t("us.searchPh")} style={{ width: "100%", height: 44, border: "1.5px solid var(--ng-line)", borderRadius: 10, padding: "0 12px 0 36px", fontSize: 13 }} /></div>
+        <select value={roleF} onChange={(ev) => { setRoleF(ev.target.value); setPage(1); }} style={{ height: 44, border: "1.5px solid var(--ng-line)", borderRadius: 10, fontSize: 13, padding: "0 12px" }}><option value="__ALL__">{t("us.allRoles")}</option><option value="admin">{t("us.rAdmin")}</option><option value="supervisor">{t("us.rSup")}</option><option value="agent">{t("us.rAgent")}</option><option value="observer">{t("us.rObs")}</option></select>
+        <select value={statusF} onChange={(ev) => { setStatusF(ev.target.value); setPage(1); }} style={{ height: 44, border: "1.5px solid var(--ng-line)", borderRadius: 10, fontSize: 13, padding: "0 12px" }}><option value="__ALL__">{t("us.allStatus")}</option><option value="on">{t("c.active")}</option><option value="off">{t("c.inactive")}</option></select>
         <button className="btn-outline-blue" style={{ width: "auto", padding: "0 18px" }} onClick={() => toast.success("OK")}><Download size={15} /> {t("c.export")}</button>
         <ScopeSwitch value={scope} onChange={(v) => { setScope(v); setPage(1); }} />
       </div></div>
@@ -312,11 +312,11 @@ export function UsersPage() {
           <table className="mock-table"><thead><tr><th>{t("us.colUser")}</th><th>{t("us.colEmail")}</th><th>{t("us.colRole")}</th><th>{t("us.colStatus")}</th><th>{t("us.colLast")}</th><th>{t("c.actions")}</th></tr></thead><tbody>
             {paged.map((u) => (
               <tr key={u.id}>
-                <td><div style={{ display: "flex", gap: 10, alignItems: "center" }}><span style={{ width: 36, height: 36, borderRadius: "50%", background: "#0a2a5e", color: "#fff", display: "grid", placeItems: "center", fontWeight: 800, fontSize: 12 }}>{((u.name ?? "NG").split(" ").map((x) => x[0]).join("")).slice(0, 2).toUpperCase()}</span><div><strong style={{ fontSize: 13 }}>{u.name ?? "User"}</strong><div style={{ fontSize: 11, color: "#7b93a8" }}>{u.appRole === "admin" ? t("us.mainAdmin") : roleShort(u.appRole)}</div></div></div></td>
+                <td><div style={{ display: "flex", gap: 10, alignItems: "center" }}><span style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--ng-ink)", color: "#fff", display: "grid", placeItems: "center", fontWeight: 800, fontSize: 12 }}>{((u.name ?? "NG").split(" ").map((x) => x[0]).join("")).slice(0, 2).toUpperCase()}</span><div><strong style={{ fontSize: 13 }}>{u.name ?? "User"}</strong><div style={{ fontSize: 11, color: "var(--ng-faint)" }}>{u.appRole === "admin" ? t("us.mainAdmin") : roleShort(u.appRole)}</div></div></div></td>
                 <td style={{ fontSize: 12.5 }}>{u.email ?? "-"}</td>
-                <td>{roleBadge(u.appRole)}<div style={{ marginTop: 6 }}><select value={u.appRole} onChange={(ev) => roleM.mutate({ id: u.id, appRole: ev.target.value as never })} style={{ fontSize: 11.5, border: "1px solid #d9e6f2", borderRadius: 7, padding: "3px 6px" }}><option value="agent">{t("us.rAgent")}</option><option value="supervisor">{t("us.rSup")}</option><option value="admin">{t("us.rAdmin")}</option><option value="observer">{t("us.rObs")}</option></select></div></td>
+                <td>{roleBadge(u.appRole)}<div style={{ marginTop: 6 }}><select value={u.appRole} onChange={(ev) => roleM.mutate({ id: u.id, appRole: ev.target.value as never })} style={{ fontSize: 11.5, border: "1px solid var(--ng-line)", borderRadius: 7, padding: "3px 6px" }}><option value="agent">{t("us.rAgent")}</option><option value="supervisor">{t("us.rSup")}</option><option value="admin">{t("us.rAdmin")}</option><option value="observer">{t("us.rObs")}</option></select></div></td>
                 <td>{u.isActive ? <span className="bdg bdg-green"><Check size={11} /> {t("c.active")}</span> : <span className="bdg bdg-red"><X size={11} /> {t("c.inactive")}</span>}</td>
-                <td style={{ fontSize: 12 }}><CalendarDays size={12} color="#0d7fdd" /> {u.lastSignedIn ? new Date(u.lastSignedIn).toLocaleString(locale) : "-"}</td>
+                <td style={{ fontSize: 12 }}><CalendarDays size={12} color="var(--ng-link)" /> {u.lastSignedIn ? new Date(u.lastSignedIn).toLocaleString(locale) : "-"}</td>
                 <td><div className="mock-actions"><button className="icon-sq" title={t("us.view")}><Eye size={14} /></button><button className="icon-sq" title={u.isActive ? t("us.suspend") : t("us.reactivate")} onClick={() => activeM.mutate({ id: u.id, isActive: !u.isActive })}>{u.isActive ? <EyeOff size={14} /> : <Pencil size={14} />}</button><button className="icon-sq danger" title={t("us.suspend")} onClick={() => { if (confirm(`${t("us.suspend")} ${u.email} ?`)) activeM.mutate({ id: u.id, isActive: false }); }}><Trash2 size={14} /></button><ArchiveButton archived={scope === "archived"} label={`${u.name ?? ""} · ${u.email ?? ""}`} disabled={u.id === me.data?.id} onConfirm={() => (scope === "archived" ? restoreM.mutateAsync({ id: u.id }) : archiveM.mutateAsync({ id: u.id }))} /></div></td>
               </tr>
             ))}

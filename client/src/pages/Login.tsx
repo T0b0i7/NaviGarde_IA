@@ -79,7 +79,7 @@ export default function Login() {
 
       <main className="ng-right" aria-labelledby="login-title">
         <div className="ng-waves" aria-hidden="true">
-          <svg viewBox="0 0 800 220" preserveAspectRatio="none"><path d="M0 120 C 150 90, 250 150, 400 120 S 650 80, 800 130 L800 220 L0 220 Z" fill="#ffffff" opacity="0.7" /><path d="M0 150 C 160 120, 300 175, 480 145 S 680 115, 800 155 L800 220 L0 220 Z" fill="#d8eaf5" opacity="0.8" /></svg>
+          <svg viewBox="0 0 800 220" preserveAspectRatio="none"><path d="M0 120 C 150 90, 250 150, 400 120 S 650 80, 800 130 L800 220 L0 220 Z" fill="var(--ng-surface)" opacity="0.7" /><path d="M0 150 C 160 120, 300 175, 480 145 S 680 115, 800 155 L800 220 L0 220 Z" fill="var(--ng-line-2)" opacity="0.8" /></svg>
         </div>
         <div style={{ position: "absolute", top: 18, right: 22, zIndex: 5 }}><LanguageSwitcher /></div>
 

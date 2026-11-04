@@ -1,0 +1,12 @@
+import { chromium } from "playwright-core";
+const BASE = "http://localhost:3000";
+const b = await chromium.launch({ executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
+const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
+const p = await ctx.newPage();
+await p.goto(BASE + "/connexion", { waitUntil: "networkidle" });
+await p.evaluate(() => localStorage.setItem("navigarde_theme", "dark"));
+await p.reload({ waitUntil: "networkidle" });
+await p.waitForTimeout(1500);
+await p.screenshot({ path: "artifacts/midnight/login.png" });
+await b.close();
+process.exit(0);

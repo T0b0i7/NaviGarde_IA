@@ -56,14 +56,14 @@ export default function ReportDetail() {
   if (!report) return <AppShell><EmptyState title={t("rpd.notFound")} action={<Link href="/rapports" className="btn-blue" style={{ padding: "0 18px", textDecoration: "none" }}>{t("rp.center")}</Link>} /></AppShell>;
 
   const donutRaw = [
-    { name: t("conf.minor"), value: findings.filter((f) => f.riskLevel === "faible" || f.riskLevel === "moyen").length, color: "#f59e0b" },
-    { name: t("conf.major"), value: findings.filter((f) => f.riskLevel === "eleve").length, color: "#f97316" },
-    { name: t("conf.critical"), value: findings.filter((f) => f.riskLevel === "critique").length, color: "#ef4444" },
+    { name: t("conf.minor"), value: findings.filter((f) => f.riskLevel === "faible" || f.riskLevel === "moyen").length, color: "var(--ng-warn)" },
+    { name: t("conf.major"), value: findings.filter((f) => f.riskLevel === "eleve").length, color: "var(--ng-high)" },
+    { name: t("conf.critical"), value: findings.filter((f) => f.riskLevel === "critique").length, color: "var(--ng-crit)" },
   ];
   const donutNonCompliant = donutRaw.filter((d) => d.value > 0);
   const donut: { name: string; value: number; color: string }[] = findings.length === 0
-    ? [{ name: t("conf.compliant"), value: 1, color: "#16a34a" }]
-    : donutNonCompliant.length > 0 ? donutNonCompliant : [{ name: t("conf.compliant"), value: 1, color: "#16a34a" }];
+    ? [{ name: t("conf.compliant"), value: 1, color: "var(--ng-ok)" }]
+    : donutNonCompliant.length > 0 ? donutNonCompliant : [{ name: t("conf.compliant"), value: 1, color: "var(--ng-ok)" }];
 
   return (
     <AppShell>
@@ -84,18 +84,18 @@ export default function ReportDetail() {
           <div className="mock-card"><div className="mock-card-b" style={{ display: "grid", gridTemplateColumns: "220px 1fr 190px", gap: 18 }}>
             <div style={{ position: "relative" }}><img src={mainPhoto} alt="" style={{ width: "100%", height: 190, objectFit: "cover", borderRadius: 12 }} /><span style={{ position: "absolute", left: 8, bottom: 8, background: "rgba(2,20,40,0.75)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 8, display: "inline-flex", gap: 6, alignItems: "center" }}><Camera size={13} /> {images.length} photos</span></div>
             <div>
-              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}><strong style={{ fontSize: 19, color: "#0a2a5e" }}>{vessel?.name ?? vessel?.registrationNumber ?? `#${report.inspectionId ?? "-"}`}</strong><span className={`bdg ${conf === "ok" ? "bdg-green" : conf === "crit" ? "bdg-red" : "bdg-yellow"}`}><Check size={12} /> {confLabel}</span></div>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}><strong style={{ fontSize: 19, color: "var(--ng-ink)" }}>{vessel?.name ?? vessel?.registrationNumber ?? `#${report.inspectionId ?? "-"}`}</strong><span className={`bdg ${conf === "ok" ? "bdg-green" : conf === "crit" ? "bdg-red" : "bdg-yellow"}`}><Check size={12} /> {confLabel}</span></div>
               <div style={{ marginTop: 12, display: "grid", gap: 8, fontSize: 13 }}>
-                <div style={{ display: "flex", gap: 8 }}><Ship size={15} color="#0d7fdd" /><span style={{ color: "#7b93a8", width: 140 }}>{t("rpd.vesselType")}</span><strong>{vessel?.type ?? "-"}</strong></div>
-                <div style={{ display: "flex", gap: 8 }}><MapPin size={15} color="#0d7fdd" /><span style={{ color: "#7b93a8", width: 140 }}>{t("rpd.place")}</span><strong>{insp?.place ?? "-"}</strong></div>
-                <div style={{ display: "flex", gap: 8 }}><CalendarDays size={15} color="#0d7fdd" /><span style={{ color: "#7b93a8", width: 140 }}>{t("rpd.dateTime")}</span><strong>{insp ? dt(insp.inspectionDate) : dt(report.createdAt)}</strong></div>
-                <div style={{ display: "flex", gap: 8 }}><User size={15} color="#0d7fdd" /><span style={{ color: "#7b93a8", width: 140 }}>{t("rpd.agent")}</span><strong>{insp?.agentId ? `Agent #${insp.agentId}` : report.createdBy ? `Agent #${report.createdBy}` : "-"}</strong></div>
-                <div style={{ display: "flex", gap: 8 }}><User size={15} color="#0d7fdd" /><span style={{ color: "#7b93a8", width: 140 }}>{t("rpd.capacity")}</span><strong>{vessel ? `${vessel.capacity} ${t("wiz.pax")}` : insp ? `${insp.passengersDetected}` : "-"}</strong></div>
+                <div style={{ display: "flex", gap: 8 }}><Ship size={15} color="var(--ng-link)" /><span style={{ color: "var(--ng-faint)", width: 140 }}>{t("rpd.vesselType")}</span><strong>{vessel?.type ?? "-"}</strong></div>
+                <div style={{ display: "flex", gap: 8 }}><MapPin size={15} color="var(--ng-link)" /><span style={{ color: "var(--ng-faint)", width: 140 }}>{t("rpd.place")}</span><strong>{insp?.place ?? "-"}</strong></div>
+                <div style={{ display: "flex", gap: 8 }}><CalendarDays size={15} color="var(--ng-link)" /><span style={{ color: "var(--ng-faint)", width: 140 }}>{t("rpd.dateTime")}</span><strong>{insp ? dt(insp.inspectionDate) : dt(report.createdAt)}</strong></div>
+                <div style={{ display: "flex", gap: 8 }}><User size={15} color="var(--ng-link)" /><span style={{ color: "var(--ng-faint)", width: 140 }}>{t("rpd.agent")}</span><strong>{insp?.agentId ? `Agent #${insp.agentId}` : report.createdBy ? `Agent #${report.createdBy}` : "-"}</strong></div>
+                <div style={{ display: "flex", gap: 8 }}><User size={15} color="var(--ng-link)" /><span style={{ color: "var(--ng-faint)", width: 140 }}>{t("rpd.capacity")}</span><strong>{vessel ? `${vessel.capacity} ${t("wiz.pax")}` : insp ? `${insp.passengersDetected}` : "-"}</strong></div>
               </div>
             </div>
             <div style={{ textAlign: "center" }}>
-              <div style={{ width: 130, height: 130, borderRadius: "50%", margin: "0 auto", background: `conic-gradient(${score >= 80 ? "#16a34a" : score >= 60 ? "#f59e0b" : "#ef4444"} ${score}%, #eef2f6 ${score}%)`, display: "grid", placeItems: "center" }}><div style={{ width: 102, height: 102, borderRadius: "50%", background: "#fff", display: "grid", placeItems: "center" }}><div><div style={{ fontSize: 24, fontWeight: 800 }}>{score}%</div><div style={{ fontSize: 11, color: "#7b93a8" }}>{t("rpd.compliance")}</div></div></div></div>
-              <div style={{ marginTop: 10, background: conf === "ok" ? "#dcfce7" : "#fef3c7", borderRadius: 10, padding: "8px 10px", fontSize: 11.5, color: "#0a2a5e", textAlign: "left" }}><strong style={{ display: "flex", gap: 6, alignItems: "center" }}><Check size={13} /> {confLabel}</strong>{insp?.recommendation?.slice(0, 90) ?? ""}</div>
+              <div style={{ width: 130, height: 130, borderRadius: "50%", margin: "0 auto", background: `conic-gradient(${score >= 80 ? "var(--ng-ok)" : score >= 60 ? "var(--ng-warn)" : "var(--ng-crit)"} ${score}%, var(--ng-grid) ${score}%)`, display: "grid", placeItems: "center" }}><div style={{ width: 102, height: 102, borderRadius: "50%", background: "var(--ng-surface)", display: "grid", placeItems: "center" }}><div><div style={{ fontSize: 24, fontWeight: 800 }}>{score}%</div><div style={{ fontSize: 11, color: "var(--ng-faint)" }}>{t("rpd.compliance")}</div></div></div></div>
+              <div style={{ marginTop: 10, background: conf === "ok" ? "var(--ng-ok-bg)" : "var(--ng-warn-bg)", borderRadius: 10, padding: "8px 10px", fontSize: 11.5, color: "var(--ng-ink)", textAlign: "left" }}><strong style={{ display: "flex", gap: 6, alignItems: "center" }}><Check size={13} /> {confLabel}</strong>{insp?.recommendation?.slice(0, 90) ?? ""}</div>
             </div>
           </div></div>
 
@@ -111,22 +111,22 @@ export default function ReportDetail() {
           {(tab === "overview" || tab === "ai") && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 12 }}>
               <div className="mock-card"><div className="mock-card-h"><h3><ShieldCheck size={15} /> {t("rpd.eval")}</h3></div><div className="mock-card-b" style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                <div style={{ width: 110, height: 110, position: "relative", flexShrink: 0 }}><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={donut} dataKey="value" innerRadius={36} outerRadius={52} paddingAngle={2} strokeWidth={0}>{donut.map((d, i) => <Cell key={i} fill={d.color} />)}</Pie></PieChart></ResponsiveContainer><div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}><div><div style={{ fontWeight: 800, fontSize: 20 }}>{score}%</div><div style={{ fontSize: 10, color: "#7b93a8" }}>{t("rpd.compliance")}</div></div></div></div>
+                <div style={{ width: 110, height: 110, position: "relative", flexShrink: 0 }}><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={donut} dataKey="value" innerRadius={36} outerRadius={52} paddingAngle={2} strokeWidth={0}>{donut.map((d, i) => <Cell key={i} fill={d.color} />)}</Pie></PieChart></ResponsiveContainer><div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}><div><div style={{ fontWeight: 800, fontSize: 20 }}>{score}%</div><div style={{ fontSize: 10, color: "var(--ng-faint)" }}>{t("rpd.compliance")}</div></div></div></div>
                 <div className="legend">{donut.map((d) => <div key={d.name}><i style={{ background: d.color }} />{d.name}<b>{d.value}</b></div>)}</div>
               </div></div>
-              <div className="mock-card"><div className="mock-card-h"><h3><Cpu size={15} /> {t("rpd.aiTitle")}</h3></div><div className="mock-card-b" style={{ fontSize: 12.5, color: "#0a2a5e", lineHeight: 1.55 }}>
+              <div className="mock-card"><div className="mock-card-h"><h3><Cpu size={15} /> {t("rpd.aiTitle")}</h3></div><div className="mock-card-b" style={{ fontSize: 12.5, color: "var(--ng-ink)", lineHeight: 1.55 }}>
                 {insp?.recommendation ?? t("rpd.noAI")}
-                <div style={{ marginTop: 10, background: "#eaf4fc", borderRadius: 10, padding: 10, fontSize: 11.5 }}><strong style={{ display: "flex", gap: 6, alignItems: "center", color: "#0d7fdd" }}><Check size={13} /> {risk >= 50 ? t("rpd.humanNeeded") : t("rpd.noCrit")}</strong><span style={{ color: "#5b7a96" }}>{t("rpd.conf")} : {insp?.confidence ?? 0}% · {t("rpd.provider")} : {insp?.analysisProvider ?? "-"}</span></div>
-                <div style={{ marginTop: 8, display: "flex", gap: 12, fontSize: 11.5, color: "#7b93a8" }}><span>{t("rpd.version")} v{report.version}</span><span>·</span><span className={`bdg ${conf === "ok" ? "bdg-green" : "bdg-yellow"}`}><Check size={11} /> {confLabel}</span></div>
+                <div style={{ marginTop: 10, background: "var(--ng-tint-2)", borderRadius: 10, padding: 10, fontSize: 11.5 }}><strong style={{ display: "flex", gap: 6, alignItems: "center", color: "var(--ng-link)" }}><Check size={13} /> {risk >= 50 ? t("rpd.humanNeeded") : t("rpd.noCrit")}</strong><span style={{ color: "var(--ng-soft)" }}>{t("rpd.conf")} : {insp?.confidence ?? 0}% · {t("rpd.provider")} : {insp?.analysisProvider ?? "-"}</span></div>
+                <div style={{ marginTop: 8, display: "flex", gap: 12, fontSize: 11.5, color: "var(--ng-faint)" }}><span>{t("rpd.version")} v{report.version}</span><span>·</span><span className={`bdg ${conf === "ok" ? "bdg-green" : "bdg-yellow"}`}><Check size={11} /> {confLabel}</span></div>
               </div></div>
             </div>
           )}
 
           {(tab === "overview" || tab === "anomalies") && (
-            <div className="mock-card"><div className="mock-card-h"><h3 style={{ color: "#b91c1c" }}><AlertTriangle size={15} /> {t("rpd.anoms")} ({findings.length})</h3></div>
+            <div className="mock-card"><div className="mock-card-h"><h3 style={{ color: "var(--ng-crit-strong)" }}><AlertTriangle size={15} /> {t("rpd.anoms")} ({findings.length})</h3></div>
               <div className="table-scroll" style={{ padding: "0 12px 12px" }}>
                 {findings.length === 0 ? <EmptyState title={t("rpd.noAnoms")} /> : (
-                <table className="mock-table anomalies-table"><colgroup><col style={{ width: "5%" }} /><col style={{ width: "15%" }} /><col style={{ width: "34%" }} /><col style={{ width: "12%" }} /><col style={{ width: "14%" }} /><col style={{ width: "20%" }} /></colgroup><thead><tr><th>#</th><th>{t("rpd.cat")}</th><th>{t("rpd.issue")}</th><th>{t("rpd.risk")}</th><th>{t("c.status")}</th><th>{t("rpd.rec")}</th></tr></thead><tbody>
+                <table className="mock-table anomalies-table"><colgroup><col style={{ width: "5%" }} /><col style={{ width: "15%" }} /><col style={{ width: "30%" }} /><col style={{ width: "10%" }} /><col style={{ width: "14%" }} /><col style={{ width: "31%" }} /></colgroup><thead><tr><th>#</th><th>{t("rpd.cat")}</th><th>{t("rpd.issue")}</th><th>{t("rpd.risk")}</th><th>{t("c.status")}</th><th>{t("rpd.rec")}</th></tr></thead><tbody>
                   {findings.map((f, i) => (
                     <tr key={f.id}><td>{i + 1}</td><td>{f.anomalyType}</td><td>{f.description}</td>
                       <td><span className={`bdg ${f.riskLevel === "critique" ? "bdg-red" : f.riskLevel === "eleve" ? "bdg-orange" : "bdg-yellow"}`}>{f.riskLevel}</span></td>
@@ -140,7 +140,7 @@ export default function ReportDetail() {
           {(tab === "overview" || tab === "photos") && (
             <div className="mock-card"><div className="mock-card-h"><h3><Camera size={15} /> {t("rpd.photosAn")} ({images.length})</h3></div>
               <div className="mock-card-b" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
-                {images.length === 0 ? <div style={{ gridColumn: "1/-1" }}><EmptyState title={t("rpd.noPhotos")} /></div> : images.slice(0, 5).map((img, i) => <div key={img.id}><div style={{ position: "relative" }}><img src={img.imageUrl} alt="" style={{ width: "100%", height: 96, objectFit: "cover", borderRadius: 10 }} /><span style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: "50%", background: "#16a34a", color: "#fff", display: "grid", placeItems: "center" }}><Check size={13} /></span></div><div style={{ fontSize: 11, color: "#0d7fdd", marginTop: 4 }}>{i + 1}. {img.imageType}</div></div>)}
+                {images.length === 0 ? <div style={{ gridColumn: "1/-1" }}><EmptyState title={t("rpd.noPhotos")} /></div> : images.slice(0, 5).map((img, i) => <div key={img.id}><div style={{ position: "relative" }}><img src={img.imageUrl} alt="" style={{ width: "100%", height: 96, objectFit: "cover", borderRadius: 10 }} /><span style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: "50%", background: "var(--ng-ok)", color: "#fff", display: "grid", placeItems: "center" }}><Check size={13} /></span></div><div style={{ fontSize: 11, color: "var(--ng-link)", marginTop: 4 }}>{i + 1}. {img.imageType}</div></div>)}
               </div>
             </div>
           )}
@@ -150,8 +150,8 @@ export default function ReportDetail() {
           )}
           {tab === "pdf" && (
             <div className="mock-card"><div className="mock-card-b" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <FileText size={28} color="#0d7fdd" />
-              <div style={{ flex: 1 }}><strong style={{ fontSize: 14 }}>{report.reference} - v{report.version}</strong><div style={{ fontSize: 11, color: "#7b93a8", fontFamily: "monospace" }}>{t("rpd.sha")} : {report.pdfSha256 ?? "-"}</div></div>
+              <FileText size={28} color="var(--ng-link)" />
+              <div style={{ flex: 1 }}><strong style={{ fontSize: 14 }}>{report.reference} - v{report.version}</strong><div style={{ fontSize: 11, color: "var(--ng-faint)", fontFamily: "monospace" }}>{t("rpd.sha")} : {report.pdfSha256 ?? "-"}</div></div>
               <button className="btn-blue" style={{ padding: "0 18px" }} onClick={openPdf}><Download size={15} /> PDF</button>
             </div></div>
           )}
@@ -169,12 +169,12 @@ export default function ReportDetail() {
           </div>
           <div className="mock-detail">
             <h3><MapPin size={15} /> {t("rpd.loc")}</h3>
-            <div style={{ background: "#eef5fb", borderRadius: 12, height: 110, display: "grid", placeItems: "center", color: "#0d7fdd" }}><MapPin size={30} /></div>
-            <div style={{ fontSize: 13 }}><strong>{insp?.place ?? "-"}</strong><div style={{ fontSize: 11, color: "#7b93a8" }}>{vessel?.latitude && vessel?.longitude ? `${vessel.latitude} N, ${vessel.longitude} E` : t("rpd.gpsMissing")}</div></div>
+            <div style={{ background: "var(--ng-tint)", borderRadius: 12, height: 110, display: "grid", placeItems: "center", color: "var(--ng-link)" }}><MapPin size={30} /></div>
+            <div style={{ fontSize: 13 }}><strong>{insp?.place ?? "-"}</strong><div style={{ fontSize: 11, color: "var(--ng-faint)" }}>{vessel?.latitude && vessel?.longitude ? `${vessel.latitude} N, ${vessel.longitude} E` : t("rpd.gpsMissing")}</div></div>
           </div>
           <div className="mock-detail">
             <h3><MessageSquare size={15} /> {t("rpd.comments")}</h3>
-            <div style={{ background: "#eef5fb", borderRadius: 10, padding: 10, fontSize: 12, color: "#0a2a5e" }}>{insp?.comments || insp?.humanNotes || t("rpd.noComments")}</div>
+            <div style={{ background: "var(--ng-tint)", borderRadius: 10, padding: 10, fontSize: 12, color: "var(--ng-ink)" }}>{insp?.comments || insp?.humanNotes || t("rpd.noComments")}</div>
           </div>
           <div className="mock-detail">
             <h3><Clock3 size={15} /> {t("rpd.history")}</h3>

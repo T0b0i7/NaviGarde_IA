@@ -69,16 +69,16 @@ export default function InspectionDetail() {
             <div>
               <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}><strong style={{ fontSize: 18 }}>{vessel?.name ?? vessel?.registrationNumber ?? `#${insp.vesselId}`}</strong><span className={`bdg ${done ? "bdg-green" : "bdg-yellow"}`}>{done ? t("inspd.done") : insp.status}</span></div>
               <div style={{ marginTop: 10, display: "grid", gap: 7, fontSize: 13 }}>
-                <div style={{ display: "flex", gap: 8 }}><Ship size={15} color="#0d7fdd" /><span style={{ color: "#5b7a96", width: 110 }}>{t("inspd.type")} :</span><strong>{vessel?.type ?? "-"}</strong></div>
-                <div style={{ display: "flex", gap: 8 }}><MapPin size={15} color="#0d7fdd" /><span style={{ color: "#5b7a96", width: 110 }}>{t("wiz.fPlace")} :</span><strong>{insp.place}</strong></div>
-                <div style={{ display: "flex", gap: 8 }}><BarChart3 size={15} color="#0d7fdd" /><span style={{ color: "#5b7a96", width: 110 }}>{t("wiz.fDate")} :</span><strong>{dt(insp.inspectionDate)}</strong></div>
-                <div style={{ display: "flex", gap: 8 }}><User size={15} color="#0d7fdd" /><span style={{ color: "#5b7a96", width: 110 }}>{t("wiz.fAgent")} :</span><strong>{insp.agentId ? `Agent #${insp.agentId}` : "-"}</strong></div>
-                <div style={{ display: "flex", gap: 8 }}><MapPin size={15} color="#0d7fdd" /><span style={{ color: "#5b7a96", width: 110 }}>{t("inspd.capacity")} :</span><strong>{vessel ? `${vessel.capacity} ${t("wiz.pax")}` : `${insp.passengersDetected}`}</strong></div>
+                <div style={{ display: "flex", gap: 8 }}><Ship size={15} color="var(--ng-link)" /><span style={{ color: "var(--ng-soft)", width: 110 }}>{t("inspd.type")} :</span><strong>{vessel?.type ?? "-"}</strong></div>
+                <div style={{ display: "flex", gap: 8 }}><MapPin size={15} color="var(--ng-link)" /><span style={{ color: "var(--ng-soft)", width: 110 }}>{t("wiz.fPlace")} :</span><strong>{insp.place}</strong></div>
+                <div style={{ display: "flex", gap: 8 }}><BarChart3 size={15} color="var(--ng-link)" /><span style={{ color: "var(--ng-soft)", width: 110 }}>{t("wiz.fDate")} :</span><strong>{dt(insp.inspectionDate)}</strong></div>
+                <div style={{ display: "flex", gap: 8 }}><User size={15} color="var(--ng-link)" /><span style={{ color: "var(--ng-soft)", width: 110 }}>{t("wiz.fAgent")} :</span><strong>{insp.agentId ? `Agent #${insp.agentId}` : "-"}</strong></div>
+                <div style={{ display: "flex", gap: 8 }}><MapPin size={15} color="var(--ng-link)" /><span style={{ color: "var(--ng-soft)", width: 110 }}>{t("inspd.capacity")} :</span><strong>{vessel ? `${vessel.capacity} ${t("wiz.pax")}` : `${insp.passengersDetected}`}</strong></div>
               </div>
             </div>
             <div style={{ textAlign: "center" }}>
-              <div style={{ width: 110, height: 110, borderRadius: "50%", margin: "0 auto", background: `conic-gradient(${score >= 80 ? "#16a34a" : "#f59e0b"} ${score}%, #eef2f6 ${score}%)`, display: "grid", placeItems: "center" }}><div style={{ width: 86, height: 86, borderRadius: "50%", background: "#fff", display: "grid", placeItems: "center" }}><div><div style={{ fontWeight: 800, fontSize: 20 }}>{score}%</div><div style={{ fontSize: 10, color: "#7b93a8" }}>{t("rpd.compliance")}</div></div></div></div>
-              <div style={{ marginTop: 8, background: "#dcfce7", borderRadius: 10, padding: 8, fontSize: 11, textAlign: "left" }}><strong style={{ display: "flex", gap: 5, alignItems: "center", color: "#15803d" }}><Check size={12} /> {riskTxt}</strong><span style={{ color: "#5b7a96" }}>{insp.recommendation?.slice(0, 80) ?? ""}</span></div>
+              <div style={{ width: 110, height: 110, borderRadius: "50%", margin: "0 auto", background: `conic-gradient(${score >= 80 ? "var(--ng-ok)" : "var(--ng-warn)"} ${score}%, var(--ng-grid) ${score}%)`, display: "grid", placeItems: "center" }}><div style={{ width: 86, height: 86, borderRadius: "50%", background: "var(--ng-surface)", display: "grid", placeItems: "center" }}><div><div style={{ fontWeight: 800, fontSize: 20 }}>{score}%</div><div style={{ fontSize: 10, color: "var(--ng-faint)" }}>{t("rpd.compliance")}</div></div></div></div>
+              <div style={{ marginTop: 8, background: "var(--ng-ok-bg)", borderRadius: 10, padding: 8, fontSize: 11, textAlign: "left" }}><strong style={{ display: "flex", gap: 5, alignItems: "center", color: "var(--ng-ok-strong)" }}><Check size={12} /> {riskTxt}</strong><span style={{ color: "var(--ng-soft)" }}>{insp.recommendation?.slice(0, 80) ?? ""}</span></div>
             </div>
           </div></div>
 
@@ -92,10 +92,10 @@ export default function InspectionDetail() {
 
           <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 12 }}>
             <div className="mock-card"><div className="mock-card-h"><h3><ShieldCheck size={15} /> {t("inspd.summary")}</h3></div><div className="mock-card-b" style={{ display: "grid", gap: 12 }}>
-              <div style={{ background: "#eef6fd", borderRadius: 10, padding: 10, fontSize: 12.5, color: "#0d7fdd" }}>{t("inspd.summaryTxt")}</div>
+              <div style={{ background: "var(--ng-tint)", borderRadius: 10, padding: 10, fontSize: 12.5, color: "var(--ng-link)" }}>{t("inspd.summaryTxt")}</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-                {[[t("inspd.safety"), `${insp.lifejacketsVisible}/${Math.max(insp.passengersDetected, 1)}`, "#16a34a"], [t("inspd.equip"), `${findings.length}/5`, "#f59e0b"], [t("inspd.struct"), insp.hullStatus === "bon" ? "0/5" : "1/5", "#0d7fdd"], [t("inspd.global"), `${score}%`, "#64748b"]].map(([label, val, c]) => (
-                  <div key={label as string} style={{ border: "1px solid #e3ecf4", borderRadius: 10, padding: 10, textAlign: "center" }}><div style={{ fontSize: 11.5, fontWeight: 700, color: c as string }}>{label}</div><div style={{ fontWeight: 800, fontSize: 16, margin: "4px 0" }}>{val}</div></div>
+                {[[t("inspd.safety"), `${insp.lifejacketsVisible}/${Math.max(insp.passengersDetected, 1)}`, "var(--ng-ok)"], [t("inspd.equip"), `${findings.length}/5`, "var(--ng-warn)"], [t("inspd.struct"), insp.hullStatus === "bon" ? "0/5" : "1/5", "var(--ng-link)"], [t("inspd.global"), `${score}%`, "var(--ng-soft)"]].map(([label, val, c]) => (
+                  <div key={label as string} style={{ border: "1px solid var(--ng-line-2)", borderRadius: 10, padding: 10, textAlign: "center" }}><div style={{ fontSize: 11.5, fontWeight: 700, color: c as string }}>{label}</div><div style={{ fontWeight: 800, fontSize: 16, margin: "4px 0" }}>{val}</div></div>
                 ))}
               </div>
             </div></div>
@@ -106,9 +106,9 @@ export default function InspectionDetail() {
             </div></div></div>
           </div>
 
-          <div className="mock-card"><div className="mock-card-h"><h3 style={{ color: "#b91c1c" }}><AlertTriangle size={15} /> {t("inspd.anoms")} ({findings.length})</h3></div>
+          <div className="mock-card"><div className="mock-card-h"><h3 style={{ color: "var(--ng-crit-strong)" }}><AlertTriangle size={15} /> {t("inspd.anoms")} ({findings.length})</h3></div>
             <div className="table-scroll" style={{ padding: "0 12px 12px" }}>{findings.length === 0 ? <EmptyState title={t("inspd.noAnom")} /> : (
-            <table className="mock-table anomalies-table"><colgroup><col style={{ width: "5%" }} /><col style={{ width: "15%" }} /><col style={{ width: "34%" }} /><col style={{ width: "12%" }} /><col style={{ width: "14%" }} /><col style={{ width: "20%" }} /></colgroup><thead><tr><th>N°</th><th>{t("inspd.colCat")}</th><th>{t("inspd.colIssue")}</th><th>{t("inspd.colRisk")}</th><th>{t("inspd.colStatus")}</th><th>{t("inspd.colReco")}</th></tr></thead><tbody>
+            <table className="mock-table anomalies-table"><colgroup><col style={{ width: "5%" }} /><col style={{ width: "15%" }} /><col style={{ width: "30%" }} /><col style={{ width: "10%" }} /><col style={{ width: "14%" }} /><col style={{ width: "31%" }} /></colgroup><thead><tr><th>N°</th><th>{t("inspd.colCat")}</th><th>{t("inspd.colIssue")}</th><th>{t("inspd.colRisk")}</th><th>{t("inspd.colStatus")}</th><th>{t("inspd.colReco")}</th></tr></thead><tbody>
               {findings.map((f, i) => <tr key={f.id}><td>{i + 1}</td><td>{f.anomalyType}</td><td style={{ fontSize: 12 }}>{f.description}</td><td><span className={`bdg ${f.riskLevel === "critique" ? "bdg-red" : f.riskLevel === "eleve" ? "bdg-orange" : "bdg-yellow"}`}>{f.riskLevel}</span></td><td><span className="bdg bdg-gray">{f.humanStatus}</span></td><td style={{ fontSize: 12 }}>{f.recommendation ?? "-"}</td></tr>)}
             </tbody></table>)}</div>
           </div>
@@ -116,7 +116,7 @@ export default function InspectionDetail() {
           <div className="mock-card"><div className="mock-card-h"><h3><Camera size={15} /> {t("inspd.photosDone")} ({images.length})</h3></div>
             <div className="mock-card-b" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
               {images.length === 0 ? <div style={{ gridColumn: "1/-1" }}><EmptyState title={t("inspd.noPhotos")} /></div>
-              : images.slice(0, 5).map((img, i) => <div key={img.id}><div style={{ position: "relative" }}><img src={img.imageUrl} alt="" style={{ width: "100%", height: 90, objectFit: "cover", borderRadius: 10 }} /><span style={{ position: "absolute", top: 5, right: 5, width: 20, height: 20, borderRadius: "50%", background: "#16a34a", color: "#fff", display: "grid", placeItems: "center" }}><Check size={12} /></span></div><div style={{ fontSize: 10.5, color: "#0d7fdd", marginTop: 3 }}>{i + 1}. {img.imageType}</div></div>)}
+              : images.slice(0, 5).map((img, i) => <div key={img.id}><div style={{ position: "relative" }}><img src={img.imageUrl} alt="" style={{ width: "100%", height: 90, objectFit: "cover", borderRadius: 10 }} /><span style={{ position: "absolute", top: 5, right: 5, width: 20, height: 20, borderRadius: "50%", background: "var(--ng-ok)", color: "#fff", display: "grid", placeItems: "center" }}><Check size={12} /></span></div><div style={{ fontSize: 10.5, color: "var(--ng-link)", marginTop: 3 }}>{i + 1}. {img.imageType}</div></div>)}
             </div>
           </div>
         </div>
@@ -124,13 +124,13 @@ export default function InspectionDetail() {
         <div className="mock-side">
           <div className="mock-detail">
             <h3><Ship size={15} /> {t("inspd.vesselBox")}</h3>
-            <div style={{ display: "flex", gap: 10 }}><img src={images[0]?.imageUrl ?? "/boat-inspection.jpg"} alt="" style={{ width: 84, height: 64, objectFit: "cover", borderRadius: 10 }} /><div><strong style={{ fontSize: 13 }}>{vessel?.name ?? vessel?.registrationNumber ?? "-"}</strong><div style={{ fontSize: 11.5, color: "#5b7a96" }}>{t("inspd.type")} : {vessel?.type ?? "-"}<br />{t("inspd.capacity")} : {vessel ? `${vessel.capacity}` : "-"}</div><span className="bdg bdg-green" style={{ marginTop: 4 }}>{t("c.active")}</span></div></div>
+            <div style={{ display: "flex", gap: 10 }}><img src={images[0]?.imageUrl ?? "/boat-inspection.jpg"} alt="" style={{ width: 84, height: 64, objectFit: "cover", borderRadius: 10 }} /><div><strong style={{ fontSize: 13 }}>{vessel?.name ?? vessel?.registrationNumber ?? "-"}</strong><div style={{ fontSize: 11.5, color: "var(--ng-soft)" }}>{t("inspd.type")} : {vessel?.type ?? "-"}<br />{t("inspd.capacity")} : {vessel ? `${vessel.capacity}` : "-"}</div><span className="bdg bdg-green" style={{ marginTop: 4 }}>{t("c.active")}</span></div></div>
             <h3 style={{ marginTop: 6 }}><MapPin size={15} /> {t("inspd.locBox")}</h3>
             <div className="mock-kv"><MapPin size={14} /><div><strong>{insp.place}</strong></div></div>
             <div className="mock-kv"><BarChart3 size={14} /><div><small>{t("wiz.fDate")}</small><strong>{dt(insp.inspectionDate)}</strong></div></div>
             <div className="mock-kv"><User size={14} /><div><small>{t("wiz.fAgent")}</small><strong>{insp.agentId ? `Agent #${insp.agentId}` : "-"}</strong></div></div>
           </div>
-          <div className="mock-detail"><h3><MessageSquare size={15} /> {t("inspd.comments")}</h3><div style={{ background: "#eef6fd", borderRadius: 10, padding: 10, fontSize: 12 }}>{insp.comments || insp.humanNotes || t("inspd.noComments")}</div></div>
+          <div className="mock-detail"><h3><MessageSquare size={15} /> {t("inspd.comments")}</h3><div style={{ background: "var(--ng-tint)", borderRadius: 10, padding: 10, fontSize: 12 }}>{insp.comments || insp.humanNotes || t("inspd.noComments")}</div></div>
           <div className="mock-detail"><h3><Zap size={15} /> {t("inspd.quick")}</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <button className="btn-outline-blue" style={{ fontSize: 11.5 }} onClick={() => createReport.mutate({ inspectionId: insp.id })}><Download size={14} /> {t("inspd.dlReport")}</button>

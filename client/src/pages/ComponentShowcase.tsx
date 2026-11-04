@@ -22,9 +22,9 @@ export default function ComponentShowcase() {
       </div>
 
       <section className="kpi-row">
-        <KpiCard icon={<ShipWheel size={20} />} color="#2563eb" label="Composants disponibles" value="24" delta="+" />
-        <KpiCard icon={<Check size={20} />} color="#0ca7b0" label="Accessibilite" value="WCAG 2.1" delta="AA" />
-        <KpiCard icon={<Waves size={20} />} color="#7c3aed" label="Themes" value="2" delta="Clair / Sombre" />
+        <KpiCard icon={<ShipWheel size={20} />} color="var(--ng-info)" label="Composants disponibles" value="24" delta="+" />
+        <KpiCard icon={<Check size={20} />} color="var(--ng-teal)" label="Accessibilite" value="WCAG 2.1" delta="AA" />
+        <KpiCard icon={<Waves size={20} />} color="var(--ng-purple)" label="Themes" value="2" delta="Clair / Sombre" />
       </section>
 
       <div className="card">

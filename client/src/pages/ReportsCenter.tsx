@@ -80,10 +80,10 @@ export default function ReportsCenter() {
     const total = Math.max(1, enriched.length);
     const c = (k: Conf) => enriched.filter((e) => e.conformity === k).length;
     return [
-      { key: "ok" as Conf, value: c("ok"), color: "#16a34a" },
-      { key: "minor" as Conf, value: c("minor"), color: "#f59e0b" },
-      { key: "major" as Conf, value: c("major"), color: "#f97316" },
-      { key: "crit" as Conf, value: c("crit"), color: "#ef4444" },
+      { key: "ok" as Conf, value: c("ok"), color: "var(--ng-ok)" },
+      { key: "minor" as Conf, value: c("minor"), color: "var(--ng-warn)" },
+      { key: "major" as Conf, value: c("major"), color: "var(--ng-high)" },
+      { key: "crit" as Conf, value: c("crit"), color: "var(--ng-crit)" },
     ].map((d) => ({ ...d, name: confLabel(d.key), pct: Math.round((d.value / total) * 100) }));
   }, [enriched, t]);
 
@@ -104,7 +104,7 @@ export default function ReportsCenter() {
 
   return (
     <AppShell>
-      <Link href="/" className="mock-back"><ArrowLeft size={14} /> {t("rp.back")} <span style={{ color: "#7b93a8", fontWeight: 500 }}>| {t("rp.center")}</span></Link>
+      <Link href="/" className="mock-back"><ArrowLeft size={14} /> {t("rp.back")} <span style={{ color: "var(--ng-faint)", fontWeight: 500 }}>| {t("rp.center")}</span></Link>
       <h1 className="mock-h1">{t("rp.title")}</h1>
       <p className="mock-sub">{t("rp.sub")}</p>
       <div style={{ height: 14 }} />
@@ -115,20 +115,20 @@ export default function ReportsCenter() {
           <div className="mock-kpis">
             {isLoading ? <><KpiSkeleton /><KpiSkeleton /><KpiSkeleton /><KpiSkeleton /></> : (
               <>
-                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#2563eb" }}><FileText size={22} /></div><div><small>{t("rp.kTotal")}</small><strong>{kpis.total}</strong><div style={{ fontSize: 11, color: "#7b93a8" }}>{t("rp.thisMonth")}</div></div></div>
-                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#16a34a" }}><Check size={22} /></div><div><small>{t("rp.kOk")}</small><strong>{kpis.conformes}</strong><span className="sub">{pct(kpis.conformes)}% {t("rp.ofTotal")}</span></div></div>
-                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#f97316" }}><AlertTriangle size={22} /></div><div><small>{t("rp.kAnom")}</small><strong>{kpis.anomalies}</strong><span className="sub">{pct(kpis.anomalies)}% {t("rp.ofTotal")}</span></div></div>
-                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#ef4444" }}><AlertTriangle size={22} /></div><div><small>{t("rp.kCrit")}</small><strong>{kpis.critiques}</strong><span className="sub">{pct(kpis.critiques)}% {t("rp.ofTotal")}</span></div></div>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-info)" }}><FileText size={22} /></div><div><small>{t("rp.kTotal")}</small><strong>{kpis.total}</strong><div style={{ fontSize: 11, color: "var(--ng-faint)" }}>{t("rp.thisMonth")}</div></div></div>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-ok)" }}><Check size={22} /></div><div><small>{t("rp.kOk")}</small><strong>{kpis.conformes}</strong><span className="sub">{pct(kpis.conformes)}% {t("rp.ofTotal")}</span></div></div>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-high)" }}><AlertTriangle size={22} /></div><div><small>{t("rp.kAnom")}</small><strong>{kpis.anomalies}</strong><span className="sub">{pct(kpis.anomalies)}% {t("rp.ofTotal")}</span></div></div>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-crit)" }}><AlertTriangle size={22} /></div><div><small>{t("rp.kCrit")}</small><strong>{kpis.critiques}</strong><span className="sub">{pct(kpis.critiques)}% {t("rp.ofTotal")}</span></div></div>
               </>
             )}
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 12 }}>
             <div className="mock-card">
-              <div className="mock-card-h"><h3><CalendarDays size={16} /> {t("rp.evol")}</h3><select value={period} onChange={(e) => setPeriod(e.target.value)} style={{ height: 34, border: "1px solid #d9e6f2", borderRadius: 8, fontSize: 12, padding: "0 8px" }}><option value="d7">{t("insp.last7")}</option><option value="d30">{t("insp.last30")}</option><option value="h24">{t("home.h24")}</option><option value="all">{t("insp.everything")}</option></select></div>
+              <div className="mock-card-h"><h3><CalendarDays size={16} /> {t("rp.evol")}</h3><select value={period} onChange={(e) => setPeriod(e.target.value)} style={{ height: 34, border: "1px solid var(--ng-line)", borderRadius: 8, fontSize: 12, padding: "0 8px" }}><option value="d7">{t("insp.last7")}</option><option value="d30">{t("insp.last30")}</option><option value="h24">{t("home.h24")}</option><option value="all">{t("insp.everything")}</option></select></div>
               <div className="mock-card-b" style={{ height: 220 }}>
-                {isLoading ? <ChartSkeleton height={200} /> : barData.length === 0 ? <div style={{ height: "100%", display: "grid", placeItems: "center", color: "#7b93a8", fontSize: 13 }}>{t("c.noResult")}</div> : (
-                  <ResponsiveContainer width="100%" height="100%"><BarChart data={barData}><XAxis dataKey="name" tick={{ fontSize: 10, fill: "#7b93a8" }} axisLine={false} tickLine={false} interval={0} /><Tooltip /><Bar dataKey="value" radius={[5, 5, 0, 0]}>{barData.map((_, i) => <Cell key={i} fill={i % 2 ? "#60a5fa" : "#2563eb"} />)}</Bar></BarChart></ResponsiveContainer>
+                {isLoading ? <ChartSkeleton height={200} /> : barData.length === 0 ? <div style={{ height: "100%", display: "grid", placeItems: "center", color: "var(--ng-faint)", fontSize: 13 }}>{t("c.noResult")}</div> : (
+                  <ResponsiveContainer width="100%" height="100%"><BarChart data={barData}><XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--ng-faint)" }} axisLine={false} tickLine={false} interval={0} /><Tooltip /><Bar dataKey="value" radius={[5, 5, 0, 0]}>{barData.map((_, i) => <Cell key={i} fill={i % 2 ? "var(--ng-info-3)" : "var(--ng-info)"} />)}</Bar></BarChart></ResponsiveContainer>
                 )}
               </div>
             </div>
@@ -137,7 +137,7 @@ export default function ReportsCenter() {
               <div className="mock-card-b">{isLoading ? <ChartSkeleton height={160} /> : <div className="donut-wrap">
                 <div style={{ width: 130, height: 130, position: "relative", flexShrink: 0 }}>
                   <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={donut} dataKey="value" innerRadius={44} outerRadius={62} paddingAngle={2} strokeWidth={0}>{donut.map((d, i) => <Cell key={i} fill={d.color} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer>
-                  <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}><div><div style={{ fontSize: 22, fontWeight: 800, color: "#0a2a5e" }}>{enriched.length}</div><div style={{ fontSize: 11, color: "#7b93a8" }}>{t("nav.reports").toLowerCase()}</div></div></div>
+                  <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}><div><div style={{ fontSize: 22, fontWeight: 800, color: "var(--ng-ink)" }}>{enriched.length}</div><div style={{ fontSize: 11, color: "var(--ng-faint)" }}>{t("nav.reports").toLowerCase()}</div></div></div>
                 </div>
                 <div className="legend">{donut.map((d) => <div key={d.key}><i style={{ background: d.color }} />{d.name}<b>{d.pct}%</b><span className="n">({d.value})</span></div>)}</div>
               </div>}</div>
@@ -153,20 +153,20 @@ export default function ReportsCenter() {
               <table className="mock-table"><thead><tr><th>{t("rp.colRef")}</th><th>{t("rp.colVessel")}</th><th>{t("rp.colType")}</th><th>{t("rp.colPlace")}</th><th>{t("rp.colDate")}</th><th>{t("rp.colStatus")}</th><th>{t("rp.colScore")}</th><th>{t("c.actions")}</th></tr></thead><tbody>
                 {paged.map(({ r, insp, vessel, conformity, score }) => (
                   <tr key={r.id} className={selected?.r.id === r.id ? "sel" : ""} onClick={() => setSelectedId(r.id)} style={{ cursor: "pointer" }}>
-                    <td><div style={{ display: "flex", gap: 8, alignItems: "center" }}><span style={{ width: 30, height: 30, borderRadius: 8, background: "#eaf4fc", color: "#0d7fdd", display: "grid", placeItems: "center" }}><FileText size={15} /></span><div><strong style={{ fontSize: 12.5 }}>{r.reference}</strong><div style={{ fontSize: 11, color: "#7b93a8" }}>{vessel?.name ?? vessel?.registrationNumber ?? `#${r.inspectionId ?? "-"}`}</div></div></div></td>
+                    <td><div style={{ display: "flex", gap: 8, alignItems: "center" }}><span style={{ width: 30, height: 30, borderRadius: 8, background: "var(--ng-tint-2)", color: "var(--ng-link)", display: "grid", placeItems: "center" }}><FileText size={15} /></span><div><strong style={{ fontSize: 12.5 }}>{r.reference}</strong><div style={{ fontSize: 11, color: "var(--ng-faint)" }}>{vessel?.name ?? vessel?.registrationNumber ?? `#${r.inspectionId ?? "-"}`}</div></div></div></td>
                     <td style={{ fontSize: 12 }}>{vessel?.registrationNumber ?? "-"}</td>
                     <td style={{ fontSize: 12 }}>{vessel?.type ?? "-"}</td>
                     <td style={{ fontSize: 12 }}>{insp?.place ?? "-"}</td>
                     <td style={{ fontSize: 11.5 }}>{new Date(r.createdAt).toLocaleDateString(locale)}<br />{new Date(r.createdAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</td>
                     <td><span className={`bdg ${badgeOf(conformity)}`}>{conformity === "ok" ? <Check size={12} /> : <AlertTriangle size={12} />}{confLabel(conformity)}</span></td>
-                    <td><span className="score-ring" style={{ background: `conic-gradient(${score >= 80 ? "#16a34a" : score >= 60 ? "#f59e0b" : "#ef4444"} ${score}%, #eef2f6 ${score}%)` }}><b>{score}%</b></span></td>
+                    <td><span className="score-ring" style={{ background: `conic-gradient(${score >= 80 ? "var(--ng-ok)" : score >= 60 ? "var(--ng-warn)" : "var(--ng-crit)"} ${score}%, var(--ng-grid) ${score}%)` }}><b>{score}%</b></span></td>
                     <td><div className="mock-actions"><button className="icon-sq" title={t("c.view")} onClick={(e) => { e.stopPropagation(); navigate(`/rapports/${r.id}`); }}><Eye size={15} /></button><button className="icon-sq" title="PDF" onClick={(e) => { e.stopPropagation(); window.open(`/api/reports/${r.id}/pdf`, "_blank"); }}><Download size={15} /></button>{!isObserver && <ArchiveButton archived={scope === "archived"} label={r.reference} onConfirm={() => (scope === "archived" ? restoreMut.mutateAsync({ id: r.id }) : archiveMut.mutateAsync({ id: r.id }))} />}<button className="icon-sq" title="···" onClick={(e) => { e.stopPropagation(); setSelectedId(r.id); }}><MoreVertical size={15} /></button></div></td>
                   </tr>
                 ))}
               </tbody></table>)}
             </div>
             <div className="mock-pager"><small>{t("rp.showing", { a: paged.length ? (safePage - 1) * PAGE + 1 : 0, b: (safePage - 1) * PAGE + paged.length, n: enriched.length })}</small>
-              <div className="pg-btns"><button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>←</button>{Array.from({ length: totalPages }).slice(0, 5).map((_, i) => <button key={i} className={safePage === i + 1 ? "on" : ""} onClick={() => setPage(i + 1)}>{i + 1}</button>)}{totalPages > 5 && <><span style={{ fontSize: 12, color: "#7b93a8" }}>…</span><button onClick={() => setPage(totalPages)}>{totalPages}</button></>}<button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>→</button></div>
+              <div className="pg-btns"><button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>←</button>{Array.from({ length: totalPages }).slice(0, 5).map((_, i) => <button key={i} className={safePage === i + 1 ? "on" : ""} onClick={() => setPage(i + 1)}>{i + 1}</button>)}{totalPages > 5 && <><span style={{ fontSize: 12, color: "var(--ng-faint)" }}>…</span><button onClick={() => setPage(totalPages)}>{totalPages}</button></>}<button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>→</button></div>
             </div>
           </div>
         </div>
@@ -183,11 +183,11 @@ export default function ReportsCenter() {
 
           <div className="mock-detail">
             <h3><FileText size={15} /> {t("rp.sel")}</h3>
-            {!selected ? <div style={{ fontSize: 13, color: "#7b93a8" }}>{t("rp.selEmpty")}</div> : (
+            {!selected ? <div style={{ fontSize: 13, color: "var(--ng-faint)" }}>{t("rp.selEmpty")}</div> : (
               <>
-                <div style={{ display: "flex", gap: 10, alignItems: "center", background: "#f6fafd", border: "1px solid #e3ecf4", borderRadius: 12, padding: 10 }}>
-                  <span style={{ width: 36, height: 36, borderRadius: 10, background: "#eaf4fc", color: "#0d7fdd", display: "grid", placeItems: "center" }}><FileText size={17} /></span>
-                  <div style={{ flex: 1 }}><strong style={{ fontSize: 13 }}>{selected.r.reference}</strong><div style={{ fontSize: 11, color: "#7b93a8" }}>{selected.vessel?.name ?? selected.vessel?.registrationNumber ?? "-"}</div></div>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", background: "var(--ng-tint)", border: "1px solid var(--ng-line-2)", borderRadius: 12, padding: 10 }}>
+                  <span style={{ width: 36, height: 36, borderRadius: 10, background: "var(--ng-tint-2)", color: "var(--ng-link)", display: "grid", placeItems: "center" }}><FileText size={17} /></span>
+                  <div style={{ flex: 1 }}><strong style={{ fontSize: 13 }}>{selected.r.reference}</strong><div style={{ fontSize: 11, color: "var(--ng-faint)" }}>{selected.vessel?.name ?? selected.vessel?.registrationNumber ?? "-"}</div></div>
                   <span className={`bdg ${badgeOf(selected.conformity)}`}>{confLabel(selected.conformity)}</span>
                 </div>
                 <div>
@@ -197,7 +197,7 @@ export default function ReportsCenter() {
                   <div className="mock-kv"><Search size={15} /><div><small>{t("rp.place")}</small><strong>{selected.insp?.place ?? "-"}</strong></div></div>
                 </div>
                 <button className="btn-outline-blue" onClick={() => navigate(`/rapports/${selected.r.id}`)}><Eye size={15} /> {t("rp.openFull")}</button>
-                <div style={{ background: "#eaf4fc", borderRadius: 12, padding: 12, fontSize: 12, color: "#0a2a5e" }}>{t("rp.aiHelp")}<div style={{ marginTop: 6 }}><Link href={`/rapports/${selected.r.id}`} style={{ color: "#0d7fdd", fontWeight: 700 }}>{t("rp.more")} →</Link></div></div>
+                <div style={{ background: "var(--ng-tint-2)", borderRadius: 12, padding: 12, fontSize: 12, color: "var(--ng-ink)" }}>{t("rp.aiHelp")}<div style={{ marginTop: 6 }}><Link href={`/rapports/${selected.r.id}`} style={{ color: "var(--ng-link)", fontWeight: 700 }}>{t("rp.more")} →</Link></div></div>
               </>
             )}
           </div>

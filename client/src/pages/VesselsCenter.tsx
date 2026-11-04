@@ -70,9 +70,9 @@ export default function VesselsCenter() {
     const total = Math.max(1, filtered.length);
     const c = (k: string) => filtered.filter((v) => riskCode(v.riskScore) === k).length;
     return [
-      { key: "low", value: c("low"), color: "#16a34a", name: t("risk.low") },
-      { key: "med", value: c("med"), color: "#f59e0b", name: t("risk.medium") },
-      { key: "high", value: c("high"), color: "#ef4444", name: t("risk.high") },
+      { key: "low", value: c("low"), color: "var(--ng-ok)", name: t("risk.low") },
+      { key: "med", value: c("med"), color: "var(--ng-warn)", name: t("risk.medium") },
+      { key: "high", value: c("high"), color: "var(--ng-crit)", name: t("risk.high") },
     ].map((d) => ({ ...d, pct: Math.round((d.value / total) * 100) }));
   }, [filtered, t]);
 
@@ -106,10 +106,10 @@ export default function VesselsCenter() {
           <div className="mock-kpis">
             {q.isLoading ? <><KpiSkeleton /><KpiSkeleton /><KpiSkeleton /><KpiSkeleton /></> : (
               <>
-                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#2563eb" }}><Ship size={22} /></div><div><small>{t("vs.kTotal")}</small><strong>{kpis.total}</strong></div></div>
-                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#16a34a" }}>✓</div><div><small>{t("vs.kAct")}</small><strong>{kpis.actives}</strong></div></div>
-                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#f97316" }}>❚❚</div><div><small>{t("vs.kInact")}</small><strong>{kpis.inactives}</strong></div></div>
-                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#ef4444" }}>!</div><div><small>{t("vs.kRisk")}</small><strong>{kpis.risque}</strong></div></div>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-info)" }}><Ship size={22} /></div><div><small>{t("vs.kTotal")}</small><strong>{kpis.total}</strong></div></div>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-ok)" }}>✓</div><div><small>{t("vs.kAct")}</small><strong>{kpis.actives}</strong></div></div>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-high)" }}>❚❚</div><div><small>{t("vs.kInact")}</small><strong>{kpis.inactives}</strong></div></div>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-crit)" }}>!</div><div><small>{t("vs.kRisk")}</small><strong>{kpis.risque}</strong></div></div>
               </>
             )}
           </div>
@@ -117,11 +117,11 @@ export default function VesselsCenter() {
           <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 12 }}>
             <div className="mock-card">
               <div className="mock-card-h"><h3><Ship size={16} /> {t("vs.colType")}</h3></div>
-              <div className="mock-card-b" style={{ height: 200 }}>{q.isLoading ? <ChartSkeleton height={180} /> : barData.length === 0 ? <div style={{ height: "100%", display: "grid", placeItems: "center", color: "#7b93a8", fontSize: 13 }}>{t("c.noResult")}</div> : <ResponsiveContainer width="100%" height="100%"><BarChart data={barData}><XAxis dataKey="name" tick={{ fontSize: 10, fill: "#7b93a8" }} axisLine={false} tickLine={false} /><Tooltip /><Bar dataKey="value" radius={[6, 6, 0, 0]}>{barData.map((_, i) => <Cell key={i} fill={i % 2 ? "#60a5fa" : "#2563eb"} />)}</Bar></BarChart></ResponsiveContainer>}</div>
+              <div className="mock-card-b" style={{ height: 200 }}>{q.isLoading ? <ChartSkeleton height={180} /> : barData.length === 0 ? <div style={{ height: "100%", display: "grid", placeItems: "center", color: "var(--ng-faint)", fontSize: 13 }}>{t("c.noResult")}</div> : <ResponsiveContainer width="100%" height="100%"><BarChart data={barData}><XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--ng-faint)" }} axisLine={false} tickLine={false} /><Tooltip /><Bar dataKey="value" radius={[6, 6, 0, 0]}>{barData.map((_, i) => <Cell key={i} fill={i % 2 ? "var(--ng-info-3)" : "var(--ng-info)"} />)}</Bar></BarChart></ResponsiveContainer>}</div>
             </div>
             <div className="mock-card">
               <div className="mock-card-h"><h3><ShieldCheck size={16} /> {t("vs.colRisk")}</h3></div>
-              <div className="mock-card-b">{q.isLoading ? <ChartSkeleton height={160} /> : <div className="donut-wrap"><div style={{ width: 130, height: 130, position: "relative", flexShrink: 0 }}><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={donut} dataKey="value" innerRadius={44} outerRadius={62} paddingAngle={2} strokeWidth={0}>{donut.map((d, i) => <Cell key={i} fill={d.color} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer><div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}><div><div style={{ fontSize: 22, fontWeight: 800, color: "#0a2a5e" }}>{filtered.length}</div><div style={{ fontSize: 11, color: "#7b93a8" }}>{t("nav.vessels").toLowerCase()}</div></div></div></div><div className="legend">{donut.map((d) => <div key={d.key}><i style={{ background: d.color }} />{d.name}<b>{d.pct}%</b><span className="n">({d.value})</span></div>)}</div></div>}</div>
+              <div className="mock-card-b">{q.isLoading ? <ChartSkeleton height={160} /> : <div className="donut-wrap"><div style={{ width: 130, height: 130, position: "relative", flexShrink: 0 }}><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={donut} dataKey="value" innerRadius={44} outerRadius={62} paddingAngle={2} strokeWidth={0}>{donut.map((d, i) => <Cell key={i} fill={d.color} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer><div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}><div><div style={{ fontSize: 22, fontWeight: 800, color: "var(--ng-ink)" }}>{filtered.length}</div><div style={{ fontSize: 11, color: "var(--ng-faint)" }}>{t("nav.vessels").toLowerCase()}</div></div></div></div><div className="legend">{donut.map((d) => <div key={d.key}><i style={{ background: d.color }} />{d.name}<b>{d.pct}%</b><span className="n">({d.value})</span></div>)}</div></div>}</div>
             </div>
           </div>
 
@@ -148,7 +148,7 @@ export default function VesselsCenter() {
                     <td style={{ fontSize: 12 }}>{v.registrationNumber}</td>
                     <td><span className={`bdg ${v.type === "Pirogue" ? "bdg-blue" : v.type === "Vedette" ? "bdg-purple" : v.type === "Barge" ? "bdg-orange" : "bdg-cyan"}`}>{v.type}</span></td>
                     <td style={{ fontSize: 12 }}>{v.place}</td>
-                    <td><span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 12, fontWeight: 700, color: on ? "#15803d" : "#64748b" }}><i style={{ width: 8, height: 8, borderRadius: "50%", background: on ? "#16a34a" : "#94a3b8" }} />{on ? t("c.active") : t("c.inactive")}</span></td>
+                    <td><span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 12, fontWeight: 700, color: on ? "var(--ng-ok-strong)" : "var(--ng-soft)" }}><i style={{ width: 8, height: 8, borderRadius: "50%", background: on ? "var(--ng-ok)" : "var(--ng-soft)" }} />{on ? t("c.active") : t("c.inactive")}</span></td>
                     <td><span className={`bdg ${rc === "low" ? "bdg-green" : rc === "med" ? "bdg-yellow" : "bdg-red"}`}>{rl(v.riskScore)}</span></td>
                     <td><div className="mock-actions"><button className="icon-sq" onClick={(e) => { e.stopPropagation(); navigate(`/embarcations/${v.id}`); }}><Eye size={15} /></button>{canEdit && <button className="icon-sq" onClick={(e) => { e.stopPropagation(); navigate(`/embarcations/${v.id}`); }}><Pencil size={15} /></button>}{canEdit && <ArchiveButton archived={scope === "archived"} label={`${v.registrationNumber} - ${v.name ?? ""}`} onConfirm={() => (scope === "archived" ? restoreMut.mutateAsync({ id: v.id }) : archiveMut.mutateAsync({ id: v.id }))} />}<button className="icon-sq" onClick={(e) => { e.stopPropagation(); setSelectedId(v.id); }}><MoreVertical size={15} /></button></div></td>
                   </tr>); })}
@@ -163,7 +163,7 @@ export default function VesselsCenter() {
         <div className="mock-side">
           <div className="mock-filters">
             <h3>{t("c.filters")} <button onClick={reset}><RotateCcw size={13} /> {t("c.reset")}</button></h3>
-            <label><span className="t">{t("vs.fName")}</span><span style={{ position: "relative", display: "block" }}><input value={nameQ} onChange={(e) => { setNameQ(e.target.value); setPage(1); }} placeholder={t("vs.fNamePh")} style={{ paddingRight: 36 }} /><Search size={15} style={{ position: "absolute", right: 12, top: 13, color: "#7b93a8" }} /></span></label>
+            <label><span className="t">{t("vs.fName")}</span><span style={{ position: "relative", display: "block" }}><input value={nameQ} onChange={(e) => { setNameQ(e.target.value); setPage(1); }} placeholder={t("vs.fNamePh")} style={{ paddingRight: 36 }} /><Search size={15} style={{ position: "absolute", right: 12, top: 13, color: "var(--ng-faint)" }} /></span></label>
             <label><span className="t">{t("vs.fType")}</span><select value={typeF} onChange={(e) => { setTypeF(e.target.value); setPage(1); }}><option value={ALL}>{t("c.all")}</option>{types.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
             <label><span className="t">{t("c.status")}</span><select value={statusF} onChange={(e) => { setStatusF(e.target.value); setPage(1); }}><option value={ALL}>{t("c.all")}</option><option value="on">{t("c.active")}</option><option value="off">{t("c.inactive")}</option></select></label>
             <label><span className="t">{t("vs.fRisk")}</span><select value={riskF} onChange={(e) => { setRiskF(e.target.value); setPage(1); }}><option value={ALL}>{t("c.all")}</option><option value="low">{t("risk.low")}</option><option value="med">{t("risk.medium")}</option><option value="high">{t("risk.high")}</option></select></label>
@@ -171,11 +171,11 @@ export default function VesselsCenter() {
           </div>
 
           <div className="mock-detail">
-            {!selected ? <div style={{ fontSize: 13, color: "#7b93a8" }}>{t("vs.selEmpty")}</div> : (
+            {!selected ? <div style={{ fontSize: 13, color: "var(--ng-faint)" }}>{t("vs.selEmpty")}</div> : (
               <>
                 <h3><Ship size={15} /> {selected.name ?? selected.registrationNumber} <span className="bdg bdg-green" style={{ marginLeft: "auto" }}>{isActive(selected.status) ? t("c.active") : t("c.inactive")}</span></h3>
                 <img src="/boat-inspection.jpg" alt="" className="mock-photo" style={{ height: 170 }} />
-                <div style={{ fontSize: 13 }}><strong>N° {selected.registrationNumber}</strong> <span style={{ color: "#7b93a8" }}>• {selected.type}</span></div>
+                <div style={{ fontSize: 13 }}><strong>N° {selected.registrationNumber}</strong> <span style={{ color: "var(--ng-faint)" }}>• {selected.type}</span></div>
                 <div className="mock-kv"><MapPin size={15} /><div><strong>{selected.place}</strong></div></div>
                 <div className="mock-kv"><CalendarDays size={15} /><div><span>{t("vs.lastInsp")} : <strong>{lastInspByVessel.get(selected.id) ? lastInspByVessel.get(selected.id)!.date.toLocaleDateString(locale) : "-"}</strong></span></div></div>
                 <div className="mock-kv"><ShieldCheck size={15} /><div><span>{t("vs.confScore")} : <strong>{lastInspByVessel.get(selected.id) ? `${lastInspByVessel.get(selected.id)!.score}%` : `${100 - selected.riskScore}%`}</strong></span></div></div>

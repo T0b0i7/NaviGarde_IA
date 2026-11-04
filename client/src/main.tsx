@@ -10,6 +10,7 @@ import "./index.css";
 import "./navigarde-premium.css";
 import "./mock-exact.css";
 import "./shell-controls.css";
+import "./theme-midnight.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {

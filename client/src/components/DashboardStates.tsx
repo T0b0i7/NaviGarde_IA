@@ -36,8 +36,8 @@ export function ChartSkeleton({ height = 220 }: { height?: number }) {
 
 export function ErrorState({ message, onRetry, lang }: { message: string; onRetry?: () => void; lang?: string }) {
   return (
-    <div style={{ padding: "1.6rem", textAlign: "center", display: "grid", gap: 10, justifyItems: "center", color: "#b91c1c" }}>
-      <div style={{ fontSize: 13, fontWeight: 700, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "10px 14px" }}>{message}</div>
+    <div style={{ padding: "1.6rem", textAlign: "center", display: "grid", gap: 10, justifyItems: "center", color: "var(--ng-crit-strong)" }}>
+      <div style={{ fontSize: 13, fontWeight: 700, background: "var(--ng-crit-bg)", border: "1px solid var(--ng-crit-border)", borderRadius: 10, padding: "10px 14px" }}>{message}</div>
       {onRetry && (
         <button className="btn-outline-blue" style={{ width: "auto", padding: "0 16px", height: 36 }} onClick={onRetry}>
           Réessayer
@@ -49,8 +49,8 @@ export function ErrorState({ message, onRetry, lang }: { message: string; onRetr
 
 export function EmptyState({ title, hint, action }: { title: string; hint?: string; action?: React.ReactNode }) {
   return (
-    <div style={{ padding: "2.2rem 1rem", textAlign: "center", color: "#7b93a8", display: "grid", gap: 8, justifyItems: "center" }}>
-      <div style={{ fontSize: 14, fontWeight: 800, color: "#0a2a5e" }}>{title}</div>
+    <div style={{ padding: "2.2rem 1rem", textAlign: "center", color: "var(--ng-faint)", display: "grid", gap: 8, justifyItems: "center" }}>
+      <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ng-ink)" }}>{title}</div>
       {hint && <div style={{ fontSize: 13, maxWidth: 420 }}>{hint}</div>}
       {action && <div style={{ marginTop: 8 }}>{action}</div>}
     </div>

@@ -59,10 +59,10 @@ export function BulletinsPage() {
     const total = Math.max(1, rows.length);
     const cnt = (k: Imp) => rows.filter((b) => b.importance === k).length;
     return [
-      { key: "information" as Imp, value: cnt("information"), color: "#16a34a", name: t("lvl.info") },
-      { key: "important" as Imp, value: cnt("important"), color: "#f59e0b", name: t("lvl.warning") },
-      { key: "urgent" as Imp, value: cnt("urgent"), color: "#f97316", name: t("lvl.alert") },
-      { key: "critique" as Imp, value: cnt("critique"), color: "#ef4444", name: t("risk.critical") },
+      { key: "information" as Imp, value: cnt("information"), color: "var(--ng-ok)", name: t("lvl.info") },
+      { key: "important" as Imp, value: cnt("important"), color: "var(--ng-warn)", name: t("lvl.warning") },
+      { key: "urgent" as Imp, value: cnt("urgent"), color: "var(--ng-high)", name: t("lvl.alert") },
+      { key: "critique" as Imp, value: cnt("critique"), color: "var(--ng-crit)", name: t("risk.critical") },
     ].filter((d) => d.value > 0).map((d) => ({ ...d, pct: Math.round((d.value / total) * 100) }));
   }, [rows, t]);
 
@@ -86,10 +86,10 @@ export function BulletinsPage() {
           <div className="mock-kpis">
             {q.isLoading ? <><KpiSkeleton /><KpiSkeleton /><KpiSkeleton /><KpiSkeleton /></> : (
               <>
-                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#2563eb" }}><Newspaper size={22} /></div><div><small>{t("bu.kTotal")}</small><strong>{kpis.total}</strong></div></div>
-                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#f97316" }}>!</div><div><small>{t("bu.kDraft")}</small><strong>{kpis.encours}</strong></div></div>
-                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#16a34a" }}><Check size={22} /></div><div><small>{t("bu.kPub")}</small><strong>{kpis.publies}</strong></div></div>
-                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "#7c3aed" }}><Archive size={22} /></div><div><small>{t("bu.kArch")}</small><strong>{kpis.archives}</strong></div></div>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-info)" }}><Newspaper size={22} /></div><div><small>{t("bu.kTotal")}</small><strong>{kpis.total}</strong></div></div>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-high)" }}>!</div><div><small>{t("bu.kDraft")}</small><strong>{kpis.encours}</strong></div></div>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-ok)" }}><Check size={22} /></div><div><small>{t("bu.kPub")}</small><strong>{kpis.publies}</strong></div></div>
+                <div className="mock-kpi"><div className="mock-kpi-ic" style={{ background: "var(--ng-purple)" }}><Archive size={22} /></div><div><small>{t("bu.kArch")}</small><strong>{kpis.archives}</strong></div></div>
               </>
             )}
           </div>
@@ -97,19 +97,19 @@ export function BulletinsPage() {
           <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 12 }}>
             <div className="mock-card">
               <div className="mock-card-h"><h3><FileText size={16} /> {t("bu.colType")}</h3></div>
-              <div className="mock-card-b" style={{ height: 200 }}>{q.isLoading ? <ChartSkeleton height={180} /> : barData.length === 0 ? <div style={{ height: "100%", display: "grid", placeItems: "center", color: "#7b93a8", fontSize: 13 }}>{t("c.noResult")}</div> : <ResponsiveContainer width="100%" height="100%"><BarChart data={barData}><XAxis dataKey="name" tick={{ fontSize: 10, fill: "#7b93a8" }} axisLine={false} tickLine={false} /><Tooltip /><Bar dataKey="value" radius={[6, 6, 0, 0]}>{barData.map((_, i) => <Cell key={i} fill={i % 2 ? "#60a5fa" : "#2563eb"} />)}</Bar></BarChart></ResponsiveContainer>}</div>
+              <div className="mock-card-b" style={{ height: 200 }}>{q.isLoading ? <ChartSkeleton height={180} /> : barData.length === 0 ? <div style={{ height: "100%", display: "grid", placeItems: "center", color: "var(--ng-faint)", fontSize: 13 }}>{t("c.noResult")}</div> : <ResponsiveContainer width="100%" height="100%"><BarChart data={barData}><XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--ng-faint)" }} axisLine={false} tickLine={false} /><Tooltip /><Bar dataKey="value" radius={[6, 6, 0, 0]}>{barData.map((_, i) => <Cell key={i} fill={i % 2 ? "var(--ng-info-3)" : "var(--ng-info)"} />)}</Bar></BarChart></ResponsiveContainer>}</div>
             </div>
             <div className="mock-card">
               <div className="mock-card-h"><h3><TriangleAlert size={16} /> {t("bu.colLevel")}</h3></div>
-              <div className="mock-card-b">{q.isLoading ? <ChartSkeleton height={160} /> : rows.length === 0 ? <div style={{ height: 160, display: "grid", placeItems: "center", color: "#7b93a8", fontSize: 13 }}>{t("c.noResult")}</div> : <div className="donut-wrap"><div style={{ width: 130, height: 130, position: "relative", flexShrink: 0 }}><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={donut} dataKey="value" innerRadius={44} outerRadius={62} paddingAngle={2} strokeWidth={0}>{donut.map((d, i) => <Cell key={i} fill={d.color} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer><div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}><div><div style={{ fontSize: 22, fontWeight: 800, color: "#0a2a5e" }}>{rows.length}</div><div style={{ fontSize: 11, color: "#7b93a8" }}>{t("nav.bulletins").toLowerCase()}</div></div></div></div><div className="legend">{donut.map((d) => <div key={String(d.key)}><i style={{ background: d.color }} />{d.name}<b>{d.pct}%</b><span className="n">({d.value})</span></div>)}</div></div>}</div>
+              <div className="mock-card-b">{q.isLoading ? <ChartSkeleton height={160} /> : rows.length === 0 ? <div style={{ height: 160, display: "grid", placeItems: "center", color: "var(--ng-faint)", fontSize: 13 }}>{t("c.noResult")}</div> : <div className="donut-wrap"><div style={{ width: 130, height: 130, position: "relative", flexShrink: 0 }}><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={donut} dataKey="value" innerRadius={44} outerRadius={62} paddingAngle={2} strokeWidth={0}>{donut.map((d, i) => <Cell key={i} fill={d.color} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer><div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}><div><div style={{ fontSize: 22, fontWeight: 800, color: "var(--ng-ink)" }}>{rows.length}</div><div style={{ fontSize: 11, color: "var(--ng-faint)" }}>{t("nav.bulletins").toLowerCase()}</div></div></div></div><div className="legend">{donut.map((d) => <div key={String(d.key)}><i style={{ background: d.color }} />{d.name}<b>{d.pct}%</b><span className="n">({d.value})</span></div>)}</div></div>}</div>
             </div>
           </div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <div style={{ position: "relative", flex: "1 1 220px" }}><Search size={16} style={{ position: "absolute", left: 12, top: 13, color: "#7b93a8" }} /><input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={t("bu.searchPh")} style={{ width: "100%", height: 42, border: "1.5px solid #d9e6f2", borderRadius: 10, padding: "0 12px 0 36px", fontSize: 13 }} /></div>
-            <select value={typeF} onChange={(e) => { setTypeF(e.target.value); setPage(1); }} style={{ height: 42, border: "1.5px solid #d9e6f2", borderRadius: 10, fontSize: 12.5, padding: "0 10px", background: "#fff" }}><option value={ALL}>{t("bu.allTypes")}</option>{types.map((x) => <option key={x} value={x}>{x}</option>)}</select>
-            <select value={zoneF} onChange={(e) => { setZoneF(e.target.value); setPage(1); }} style={{ height: 42, border: "1.5px solid #d9e6f2", borderRadius: 10, fontSize: 12.5, padding: "0 10px", background: "#fff" }}><option value={ALL}>{t("bu.allZones")}</option>{zones.map((z) => <option key={z} value={z}>{z}</option>)}</select>
-            <select value={lvlF} onChange={(e) => { setLvlF(e.target.value); setPage(1); }} style={{ height: 42, border: "1.5px solid #d9e6f2", borderRadius: 10, fontSize: 12.5, padding: "0 10px", background: "#fff" }}><option value={ALL}>{t("bu.allLevels")}</option><option value="information">{t("risk.low")}</option><option value="important">{t("risk.medium")}</option><option value="urgent">{t("risk.high")}</option><option value="critique">{t("risk.critical")}</option></select>
+            <div style={{ position: "relative", flex: "1 1 220px" }}><Search size={16} style={{ position: "absolute", left: 12, top: 13, color: "var(--ng-faint)" }} /><input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={t("bu.searchPh")} style={{ width: "100%", height: 42, border: "1.5px solid var(--ng-line)", borderRadius: 10, padding: "0 12px 0 36px", fontSize: 13 }} /></div>
+            <select value={typeF} onChange={(e) => { setTypeF(e.target.value); setPage(1); }} style={{ height: 42, border: "1.5px solid var(--ng-line)", borderRadius: 10, fontSize: 12.5, padding: "0 10px", background: "var(--ng-surface)" }}><option value={ALL}>{t("bu.allTypes")}</option>{types.map((x) => <option key={x} value={x}>{x}</option>)}</select>
+            <select value={zoneF} onChange={(e) => { setZoneF(e.target.value); setPage(1); }} style={{ height: 42, border: "1.5px solid var(--ng-line)", borderRadius: 10, fontSize: 12.5, padding: "0 10px", background: "var(--ng-surface)" }}><option value={ALL}>{t("bu.allZones")}</option>{zones.map((z) => <option key={z} value={z}>{z}</option>)}</select>
+            <select value={lvlF} onChange={(e) => { setLvlF(e.target.value); setPage(1); }} style={{ height: 42, border: "1.5px solid var(--ng-line)", borderRadius: 10, fontSize: 12.5, padding: "0 10px", background: "var(--ng-surface)" }}><option value={ALL}>{t("bu.allLevels")}</option><option value="information">{t("risk.low")}</option><option value="important">{t("risk.medium")}</option><option value="urgent">{t("risk.high")}</option><option value="critique">{t("risk.critical")}</option></select>
             <ScopeSwitch value={scope} onChange={(v) => { setScope(v); setPage(1); setSelectedId(null); }} />
           </div>
 
@@ -121,7 +121,7 @@ export function BulletinsPage() {
               <table className="mock-table"><thead><tr><th>{t("bu.colN")}</th><th>{t("bu.colTitle")}</th><th>{t("bu.colType")}</th><th>{t("bu.colZone")}</th><th>{t("bu.colLevel")}</th><th>{t("bu.colDate")}</th><th>{t("bu.colStatus")}</th><th>{t("c.actions")}</th></tr></thead><tbody>
                 {paged.map((b) => (
                   <tr key={b.id} className={selected?.id === b.id ? "sel" : ""} onClick={() => setSelectedId(b.id)} style={{ cursor: "pointer" }}>
-                    <td style={{ fontSize: 11.5, fontWeight: 700, color: "#0d7fdd" }}>BM-{new Date(b.createdAt).getFullYear()}-{String(b.id).padStart(3, "0")}</td>
+                    <td style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ng-link)" }}>BM-{new Date(b.createdAt).getFullYear()}-{String(b.id).padStart(3, "0")}</td>
                     <td style={{ maxWidth: 180 }}><strong style={{ fontSize: 12.5 }}>{b.title}</strong></td>
                     <td><span className={`bdg ${impBadge(b.importance)}`}>{impLabel(b.importance)}</span></td>
                     <td style={{ fontSize: 12 }}>{b.maritimeZone}</td>
@@ -141,22 +141,22 @@ export function BulletinsPage() {
 
         <div className="mock-side">
           <div className="mock-detail">
-            <h3>{t("bu.detail")} {selected && <button style={{ marginLeft: "auto", color: "#7b93a8" }} onClick={() => setSelectedId(null)}><X size={16} /></button>}</h3>
-            {!selected ? <div style={{ fontSize: 13, color: "#7b93a8" }}>{t("bu.selEmpty")}</div> : (
+            <h3>{t("bu.detail")} {selected && <button style={{ marginLeft: "auto", color: "var(--ng-faint)" }} onClick={() => setSelectedId(null)}><X size={16} /></button>}</h3>
+            {!selected ? <div style={{ fontSize: 13, color: "var(--ng-faint)" }}>{t("bu.selEmpty")}</div> : (
               <>
                 <div style={{ position: "relative" }}>
                   <img src="/boat-inspection.jpg" alt="" style={{ width: "100%", height: 170, objectFit: "cover", borderRadius: 12 }} />
                   <span className={`bdg ${impBadge(selected.importance)}`} style={{ position: "absolute", top: 8, right: 8 }}><TriangleAlert size={11} /> {impLabel(selected.importance)}</span>
                 </div>
-                <h2 style={{ margin: 0, fontSize: 19, color: "#0a2a5e", lineHeight: 1.25 }}>{selected.title}</h2>
-                <div style={{ display: "flex", gap: 12, fontSize: 12, color: "#0d7fdd", fontWeight: 600, flexWrap: "wrap" }}><span style={{ display: "inline-flex", gap: 5, alignItems: "center" }}><Clock size={13} /> {dt(selected.createdAt)}</span><span style={{ display: "inline-flex", gap: 5, alignItems: "center" }}><MapPin size={13} /> {selected.maritimeZone}</span></div>
-                <div style={{ background: selected.importance === "information" ? "#dcfce7" : "#fee2e2", color: selected.importance === "information" ? "#15803d" : "#b91c1c", borderRadius: 10, padding: "10px 12px", fontWeight: 800, fontSize: 13, display: "flex", gap: 8, alignItems: "center" }}><TriangleAlert size={16} /> {t("bu.level")} : {lvlLabel(selected.importance)}</div>
-                <div><h4 style={{ margin: "0 0 6px", fontSize: 13, display: "flex", gap: 6, alignItems: "center" }}><BadgeCheck size={14} color="#0d7fdd" /> {t("bu.summary")}</h4><p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: "#0a2a5e" }}>{selected.content}</p></div>
-                <div><h4 style={{ margin: "0 0 6px", fontSize: 13, display: "flex", gap: 6, alignItems: "center" }}><BadgeCheck size={14} color="#0d7fdd" /> {t("bu.reco")}</h4>
-                  <div style={{ display: "grid", gap: 5, fontSize: 12.5 }}>{(selected.importance === "information" ? t("bu.recoSafe") : t("bu.recoBad")).split(",").map((r, i) => <div key={i} style={{ display: "flex", gap: 7 }}><Check size={14} color="#16a34a" style={{ flexShrink: 0, marginTop: 2 }} /><span>{r}</span></div>)}</div>
+                <h2 style={{ margin: 0, fontSize: 19, color: "var(--ng-ink)", lineHeight: 1.25 }}>{selected.title}</h2>
+                <div style={{ display: "flex", gap: 12, fontSize: 12, color: "var(--ng-link)", fontWeight: 600, flexWrap: "wrap" }}><span style={{ display: "inline-flex", gap: 5, alignItems: "center" }}><Clock size={13} /> {dt(selected.createdAt)}</span><span style={{ display: "inline-flex", gap: 5, alignItems: "center" }}><MapPin size={13} /> {selected.maritimeZone}</span></div>
+                <div style={{ background: selected.importance === "information" ? "var(--ng-ok-bg)" : "var(--ng-crit-bg-2)", color: selected.importance === "information" ? "var(--ng-ok-strong)" : "var(--ng-crit-strong)", borderRadius: 10, padding: "10px 12px", fontWeight: 800, fontSize: 13, display: "flex", gap: 8, alignItems: "center" }}><TriangleAlert size={16} /> {t("bu.level")} : {lvlLabel(selected.importance)}</div>
+                <div><h4 style={{ margin: "0 0 6px", fontSize: 13, display: "flex", gap: 6, alignItems: "center" }}><BadgeCheck size={14} color="var(--ng-link)" /> {t("bu.summary")}</h4><p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: "var(--ng-ink)" }}>{selected.content}</p></div>
+                <div><h4 style={{ margin: "0 0 6px", fontSize: 13, display: "flex", gap: 6, alignItems: "center" }}><BadgeCheck size={14} color="var(--ng-link)" /> {t("bu.reco")}</h4>
+                  <div style={{ display: "grid", gap: 5, fontSize: 12.5 }}>{(selected.importance === "information" ? t("bu.recoSafe") : t("bu.recoBad")).split(",").map((r, i) => <div key={i} style={{ display: "flex", gap: 7 }}><Check size={14} color="var(--ng-ok)" style={{ flexShrink: 0, marginTop: 2 }} /><span>{r}</span></div>)}</div>
                 </div>
-                <div><h4 style={{ margin: "0 0 6px", fontSize: 13, display: "flex", gap: 6, alignItems: "center" }}><FileText size={14} color="#0d7fdd" /> {t("bu.files")}</h4>
-                  {(() => { try { const atts = selected.attachments ? JSON.parse(selected.attachments) as string[] : []; if (!atts.length) return <div style={{ fontSize: 12, color: "#7b93a8" }}>{t("bu.noFiles")}</div>; return atts.map((u, i) => <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, padding: "6px 0" }}><span style={{ color: "#0d7fdd", fontWeight: 600 }}>Bulletin_{String(selected.id).padStart(3, "0")}.pdf</span><button className="icon-sq" onClick={() => window.open(u, "_blank")}><Download size={14} /></button></div>); } catch { return <div style={{ fontSize: 12, color: "#7b93a8" }}>{t("bu.noFiles")}</div>; } })()}
+                <div><h4 style={{ margin: "0 0 6px", fontSize: 13, display: "flex", gap: 6, alignItems: "center" }}><FileText size={14} color="var(--ng-link)" /> {t("bu.files")}</h4>
+                  {(() => { try { const atts = selected.attachments ? JSON.parse(selected.attachments) as string[] : []; if (!atts.length) return <div style={{ fontSize: 12, color: "var(--ng-faint)" }}>{t("bu.noFiles")}</div>; return atts.map((u, i) => <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, padding: "6px 0" }}><span style={{ color: "var(--ng-link)", fontWeight: 600 }}>Bulletin_{String(selected.id).padStart(3, "0")}.pdf</span><button className="icon-sq" onClick={() => window.open(u, "_blank")}><Download size={14} /></button></div>); } catch { return <div style={{ fontSize: 12, color: "var(--ng-faint)" }}>{t("bu.noFiles")}</div>; } })()}
                 </div>
                 <button className="btn-blue" onClick={() => { const atts = (() => { try { return selected.attachments ? JSON.parse(selected.attachments) as string[] : []; } catch { return []; } })(); if (atts[0]) window.open(atts[0], "_blank"); else toast.info(t("bu.noFileDl")); }}><Download size={15} /> {t("c.download")}</button>
                 <button className="btn-outline-blue" onClick={async () => { try { await navigator.clipboard.writeText(`${selected.title} - ${selected.content}`); toast.success("OK"); } catch {} }}><Share2 size={15} /> {t("c.share")}</button>
