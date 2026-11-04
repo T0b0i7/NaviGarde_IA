@@ -94,6 +94,38 @@ for (const res of [wide, medium, mobile]) {
   if (res.badges.length) problems.push(`${res.label}: ${res.badges.length} badge(s) overflow ${JSON.stringify(res.badges.slice(0, 3))}`);
 }
 
-console.log(JSON.stringify({ loginLayout, wide, medium, mobile, problems, out: OUT }, null, 2));
+// --- route sweep: detect elements sticking out of the viewport ---
+const ROUTES = ["/", "/inspections", "/inspections/3", "/rapports", "/rapports/3", "/embarcations", "/alertes", "/bulletins", "/utilisateurs", "/audit", "/parametres"];
+const sweep = [];
+for (const vp of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+  await page.setViewportSize(vp);
+  for (const route of ROUTES) {
+    await page.goto(`${BASE}${route}`, { waitUntil: "networkidle" }).catch(() => {});
+    await page.waitForTimeout(500);
+    const res = await page.evaluate(() => {
+      const vw = document.documentElement.clientWidth;
+      const offenders = [];
+      document.querySelectorAll("body *").forEach((el) => {
+        const cs = getComputedStyle(el);
+        if (cs.position === "fixed" || cs.visibility === "hidden" || cs.display === "none") return;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) return;
+        if (r.right > vw + 2) {
+          offenders.push({
+            tag: el.tagName.toLowerCase(),
+            cls: (el.className || "").toString().slice(0, 60),
+            right: Math.round(r.right),
+            text: (el.textContent || "").trim().slice(0, 30),
+          });
+        }
+      });
+      return { vw, scroll: document.documentElement.scrollWidth, offenders: offenders.slice(0, 6), count: offenders.length };
+    });
+    sweep.push({ viewport: vp.width, route, ...res });
+    if (res.count) problems.push(`${route} @${vp.width}: ${res.count} element(s) exceed viewport e.g. ${JSON.stringify(res.offenders[0])}`);
+  }
+}
+
+console.log(JSON.stringify({ loginLayout, wide, medium, mobile, sweep, problems, out: OUT }, null, 2));
 await browser.close();
 process.exit(problems.length ? 2 : 0);
