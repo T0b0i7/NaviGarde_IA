@@ -58,10 +58,18 @@ export function clearLocalSessionCookie(response: Response, request?: Request) {
   response.clearCookie(LOCAL_SESSION_COOKIE, { httpOnly: true, secure, sameSite: secure ? "none" : "lax", path: "/" });
 }
 
-export async function startLocalSession(userId: number, response: Response, request?: Request) {
+export async function startLocalSession(userId: number, response: Response, request?: Request, days = SESSION_DAYS) {
   const token = randomBytes(32).toString("base64url");
-  await createAuthSession({ userId, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000) });
-  setLocalSessionCookie(response, token, request);
+  const maxAge = days * 24 * 60 * 60 * 1000;
+  await createAuthSession({ userId, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + maxAge) });
+  const secure = isSecureRequest(request);
+  response.cookie(LOCAL_SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure,
+    sameSite: secure ? "none" : "lax",
+    path: "/",
+    maxAge,
+  });
 }
 
 export async function authenticateLocalRequest(request: Request) {

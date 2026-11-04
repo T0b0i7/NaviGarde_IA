@@ -10,17 +10,23 @@ import "./login.css";
 export default function Login() {
   const { t } = useLang();
   const [, navigate] = useLocation();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => { try { return localStorage.getItem("navigarde_remember_email") ?? ""; } catch { return ""; } });
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => { try { return Boolean(localStorage.getItem("navigarde_remember_email")); } catch { return false; } });
   const [resetMode, setResetMode] = useState(false);
   const [resetToken, setResetToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
   const login = trpc.localAuth.login.useMutation({
-    onSuccess: () => navigate("/", { replace: true }),
+    onSuccess: () => {
+      try {
+        if (rememberMe) localStorage.setItem("navigarde_remember_email", email.trim().toLowerCase());
+        else localStorage.removeItem("navigarde_remember_email");
+      } catch {}
+      navigate("/", { replace: true });
+    },
     onError: () => setError(t("login.error")),
   });
   const requestReset = trpc.localAuth.requestPasswordReset.useMutation({
@@ -32,7 +38,7 @@ export default function Login() {
     onError: () => setError(t("login.resetFail")),
   });
 
-  const handleLogin = (e: FormEvent) => { e.preventDefault(); setError(""); login.mutate({ email, password }); };
+  const handleLogin = (e: FormEvent) => { e.preventDefault(); setError(""); login.mutate({ email, password, remember: rememberMe }); };
   const handleRequestReset = (e: FormEvent) => { e.preventDefault(); setError(""); requestReset.mutate({ email }); };
   const handleFinishRecovery = (e: FormEvent) => { e.preventDefault(); setError(""); finishRecovery.mutate({ token: resetToken, password: newPassword }); };
 
@@ -84,20 +90,20 @@ export default function Login() {
           </div>
 
           {!resetMode ? (
-            <form onSubmit={handleLogin} className="ng-form">
+            <form onSubmit={handleLogin} className="ng-form" autoComplete="on">
               <div className="ng-field">
                 <label htmlFor="login-email"><User size={18} /> {t("login.email")}</label>
-                <input id="login-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder={t("login.emailPh")} autoComplete="username" />
+                <input id="login-email" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder={t("login.emailPh")} autoComplete="username" />
               </div>
               <div className="ng-field">
                 <label htmlFor="login-password"><Lock size={18} /> {t("login.password")}</label>
                 <div className="ng-pass-wrap">
-                  <input id="login-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required placeholder={t("login.passwordPh")} autoComplete="current-password" />
+                  <input id="login-password" name="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required placeholder={t("login.passwordPh")} autoComplete="current-password" />
                   <button type="button" className="ng-eye" onClick={() => setShowPassword(!showPassword)} aria-label="toggle">{showPassword ? <Eye size={20} /> : <EyeOff size={20} />}</button>
                 </div>
               </div>
               <div className="ng-row">
-                <label className="ng-check"><input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} /><span>{t("login.remember")}</span></label>
+                <label className="ng-check"><input type="checkbox" checked={rememberMe} onChange={(e) => { setRememberMe(e.target.checked); if (!e.target.checked) { try { localStorage.removeItem("navigarde_remember_email"); } catch {} } }} /><span>{t("login.remember")}</span></label>
                 <a href="#" onClick={(e) => { e.preventDefault(); setResetMode(true); setError(""); }}>{t("login.forgot")}</a>
               </div>
               {error && <div className="ng-error" role="alert">{error}</div>}

@@ -25,7 +25,7 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 });
 
 export const authRouter = router({
-  login: publicProcedure.input(z.object({ email: z.string().email(), password: z.string().min(1) })).mutation(async ({ input, ctx }) => {
+  login: publicProcedure.input(z.object({ email: z.string().email(), password: z.string().min(1), remember: z.boolean().default(false) })).mutation(async ({ input, ctx }) => {
     const key = `${ctx.req.ip ?? "unknown"}:${normalizeEmail(input.email)}`; enforceLoginRateLimit(key);
     const user = await getUserByEmail(normalizeEmail(input.email));
     if (!user?.passwordHash || user.isActive !== 1 || !(await verifyPassword(input.password, user.passwordHash))) {
@@ -33,8 +33,8 @@ export const authRouter = router({
       throw new TRPCError({ code: "UNAUTHORIZED", message: "Adresse e-mail ou mot de passe incorrect." });
     }
     clearLoginFailures(key);
-    await startLocalSession(user.id, ctx.res, ctx.req);
-    await addAuditEvent({ userId: user.id, action: "auth.login", entityType: "session", metadata: JSON.stringify({ method: "local" }) });
+    await startLocalSession(user.id, ctx.res, ctx.req, input.remember ? 30 : 7);
+    await addAuditEvent({ userId: user.id, action: "auth.login", entityType: "session", metadata: JSON.stringify({ method: "local", remember: input.remember }) });
     return { success: true, user: { id: user.id, name: user.name, email: user.email, appRole: user.appRole } };
   }),
   requestPasswordReset: publicProcedure.input(z.object({ email: z.string().email() })).mutation(async ({ input, ctx }) => {
