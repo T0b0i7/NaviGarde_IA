@@ -167,11 +167,15 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          "react-vendor": ["react", "react-dom"],
-          "ui-vendor": ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-popover", "@radix-ui/react-select", "@radix-ui/react-tooltip"],
-          "chart-vendor": ["recharts", "framer-motion"],
-          "trpc-vendor": ["@trpc/client", "@trpc/react-query", "@tanstack/react-query"],
+        // Une seule stratégie de découpage : React, Radix, Recharts et tRPC
+        // partagent des initialisations croisées (CommonJS interop). Les
+        // répartir entre plusieurs morceaux a provoqué un
+        // « Cannot read properties of undefined (reading 'exports') » au
+        // chargement. Deux morceaux seulement : les bibliothèques (stables,
+        // donc mises en cache entre déploiements) et l'application dont les
+        // écrans sont chargés à la demande (client/src/App.tsx).
+        manualChunks(id) {
+          return id.includes("node_modules") ? "vendor" : undefined;
         },
       },
     },
