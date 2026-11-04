@@ -3,6 +3,7 @@ import { z } from "zod";
 import { addAuditEvent, addInspectionImage, addReportVersion, archiveAlert, archiveInspection, archiveMaritimeBulletin, archiveReport, archiveUser, archiveVessel, createAlert, createInspection, createMaritimeBulletin, createNotification, createReport, createVessel, dashboardMetrics, deleteAlert, deleteVessel, getAlert, getAppSettings, getAuditEvent, getInspection, getReport, getVessel, getVesselByRegistration, listAlertHistory, listAlerts, listAuditEvents, listInspectionFindings, listInspectionHistory, listInspectionImages, listInspections, listMaritimeBulletins, listNotifications, listReportVersions, listReports, listUsers, listVessels, markAllNotificationsRead, markNotificationRead, replaceInspectionFindings, restoreAlert, restoreInspection, restoreMaritimeBulletin, restoreReport, restoreUser, restoreVessel, sha256, transitionInspection, updateAlertWithHistory, updateInspection, updateInspectionFinding, updateMaritimeBulletin, updateReport, updateVessel, upsertAppSetting } from "./db";
 import { storagePut } from "./storage";
 import { renderReportPdf } from "./reportPdf";
+import { publicReport, publicReports } from "./serializers";
 import { protectedProcedure, publicProcedure, router, supervisorProcedure, adminAppProcedure as adminProcedure, operationalProcedure } from "./_core/trpc";
 
 
@@ -58,7 +59,12 @@ export const dataRouter = router({
     metrics: protectedProcedure.input(z.object({ period: z.enum(["24 heures", "7 jours", "30 jours"]).default("7 jours") })).query(({ input }) => dashboardMetrics(input.period)),
   }),
   inspections: router({
-    list: operationalProcedure.input(z.object({ limit: z.number().int().min(1).max(500).default(100), offset: z.number().int().min(0).default(0), vesselId: z.number().int().positive().optional(), scope: archiveScope }).optional()).query(({ input }) => listInspections(input?.limit ?? 100, input?.offset ?? 0, input?.vesselId, input?.scope ?? "active")),
+    // Lecture : ouverte à tous les rôles authentifiés. Les centres Rapports et
+    // Embarcations, accessibles à l'Observateur, ont besoin de la liste des
+    // inspections pour leurs statistiques. Écrire (`create`, `saveAnalysis`,
+    // `review`...) reste réservé par `operationalProcedure`, qui exclut
+    // l'Observateur.
+    list: protectedProcedure.input(z.object({ limit: z.number().int().min(1).max(500).default(100), offset: z.number().int().min(0).default(0), vesselId: z.number().int().positive().optional(), scope: archiveScope }).optional()).query(({ input }) => listInspections(input?.limit ?? 100, input?.offset ?? 0, input?.vesselId, input?.scope ?? "active")),
     get: operationalProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input, ctx }) => {
       const [inspection, images, findings, history] = await Promise.all([getInspection(input.id), listInspectionImages(input.id), listInspectionFindings(input.id), listInspectionHistory(input.id)]);
       if (!inspection) throw new TRPCError({ code: "NOT_FOUND", message: "Inspection introuvable." });
@@ -151,7 +157,16 @@ export const dataRouter = router({
     }),
   }),
   alerts: router({
+    // Lecture seule : l'Observateur en a besoin pour le tableau de bord.
+    // La consultation des alertes est déjà ouverte à tous les rôles
+    // (`/alertes` n'est fermé qu'à lui côté navigation, mais le badge du shell
+    // et le récapitulatif du dashboard sont légitimes).
     list: protectedProcedure.input(z.object({ limit: z.number().int().min(1).max(500).default(100), offset: z.number().int().min(0).default(0), vesselId: z.number().int().positive().optional(), scope: archiveScope }).optional()).query(({ input }) => listAlerts(input?.limit ?? 100, input?.offset ?? 0, input?.vesselId, input?.scope ?? "active")),
+    /** Compteur public des alertes ouvertes : aucune donnée sensible. */
+    openCount: protectedProcedure.query(async () => {
+      const rows = await listAlerts(500, 0);
+      return rows.filter((alert) => alert.status !== "resolue" && alert.status !== "cloturee").length;
+    }),
     get: protectedProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input }) => {
       const alert = await getAlert(input.id);
       if (!alert) throw new TRPCError({ code: "NOT_FOUND", message: "Alerte introuvable." });
@@ -192,7 +207,7 @@ export const dataRouter = router({
     }),
   }),
   reports: router({
-    list: protectedProcedure.input(z.object({ limit: z.number().int().min(1).max(500).default(100), offset: z.number().int().min(0).default(0), scope: archiveScope }).optional()).query(({ input }) => listReports(input?.limit ?? 100, input?.offset ?? 0, input?.scope ?? "active")),
+    list: protectedProcedure.input(z.object({ limit: z.number().int().min(1).max(500).default(100), offset: z.number().int().min(0).default(0), scope: archiveScope }).optional()).query(async ({ input }) => publicReports(await listReports(input?.limit ?? 100, input?.offset ?? 0, input?.scope ?? "active"))),
     get: protectedProcedure.input(z.object({ id: z.number().int().positive() })).query(async ({ input }) => {
       const report = await getReport(input.id);
       if (!report) throw new TRPCError({ code: "NOT_FOUND", message: "Rapport introuvable." });
@@ -202,7 +217,7 @@ export const dataRouter = router({
       const images = report.inspectionId ? await listInspectionImages(report.inspectionId).catch(() => []) : [];
       const findings = report.inspectionId ? await listInspectionFindings(report.inspectionId).catch(() => []) : [];
       const history = report.inspectionId ? await listInspectionHistory(report.inspectionId).catch(() => []) : [];
-      return { report, versions, inspection, vessel, images, findings, history };
+      return { report: publicReport(report)!, versions, inspection, vessel, images, findings, history };
     }),
     createFromInspection: operationalProcedure.input(z.object({ inspectionId: z.number().int().positive(), title: z.string().max(180).default("Rapport d’inspection NaviGarde IA") })).mutation(async ({ input, ctx }) => { const inspection = await getInspection(input.inspectionId); if (!inspection) throw new TRPCError({ code: "NOT_FOUND", message: "Inspection introuvable." }); const reference = `RPT-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`; const content = `${input.title}\nInspection #${inspection.id}\nLieu : ${inspection.place}\nScore de risque : ${inspection.riskScore}/100\nRecommandation : ${inspection.recommendation ?? "Vérification humaine recommandée."}\nStatut : ${inspection.status}`; const created = await createReport({ inspectionId: input.inspectionId, reference, content, status: "brouillon", createdBy: ctx.user.id }); const pdf = await renderReportPdf(created.id); const hash = sha256(pdf); const stored = await storagePut(`reports/${created.id}/v1.pdf`, pdf, "application/pdf"); await updateReport(created.id, { pdfStorageKey: stored.key, pdfUrl: `/api/reports/${created.id}/pdf`, pdfSha256: hash }); await addReportVersion({ reportId: created.id, version: 1, content, pdfSha256: hash, createdBy: ctx.user.id }); return { ...created, reference, pdfUrl: `/api/reports/${created.id}/pdf`, pdfSha256: hash }; }),
     update: operationalProcedure.input(z.object({ id: z.number().int().positive(), content: z.string().min(10).max(50000) })).mutation(async ({ input, ctx }) => { const report = await getReport(input.id); if (!report) throw new TRPCError({ code: "NOT_FOUND", message: "Rapport introuvable." }); const version = report.version + 1; await updateReport(input.id, { content: input.content, version, status: "a_valider" }); const pdf = await renderReportPdf(input.id); const hash = sha256(pdf); const stored = await storagePut(`reports/${input.id}/v${version}.pdf`, pdf, "application/pdf"); await updateReport(input.id, { pdfStorageKey: stored.key, pdfUrl: `/api/reports/${input.id}/pdf`, pdfSha256: hash }); await addReportVersion({ reportId: input.id, version, content: input.content, pdfSha256: hash, createdBy: ctx.user.id }); return { success: true, version, pdfUrl: `/api/reports/${input.id}/pdf`, pdfSha256: hash }; }),
