@@ -64,6 +64,20 @@
       "when": 1793796638572,
       "tag": "0008_flowery_the_call",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1793816000000,
+      "tag": "0009_foreign_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1793817600000,
+      "tag": "0010_storage_objects",
+      "breakpoints": true
     }
   ]
 }

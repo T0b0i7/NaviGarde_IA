@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNotNull, isNull, like } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, isNull, like, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
 import { alertHistory, alerts, appSettings, authSessions, auditEvents, InsertUser, inspectionFindings, inspectionHistory, inspectionImages, inspections, maritimeBulletins, maritimeZones, notifications, passwordResetTokens, reportVersions, reports, users, vessels, vesselPositions, weatherBulletins } from "../drizzle/schema";
@@ -15,6 +15,28 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+/**
+ * Vérifie réellement la connexion MySQL (pas seulement la présence de
+ * DATABASE_URL). Utilisé par /api/health : un healthcheck doit échouer si la
+ * base est injoignable, sinon les orchestrateurs laissent tourner un service
+ * cassé.
+ */
+export async function checkDatabase(timeoutMs = 3000): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
+  if (!process.env.DATABASE_URL) return { ok: false, latencyMs: 0, error: "DATABASE_URL absent" };
+  const db = await getDb();
+  if (!db) return { ok: false, latencyMs: 0, error: "Connexion Drizzle non initialisée" };
+  const start = Date.now();
+  try {
+    await Promise.race([
+      db.execute(sql`SELECT 1`),
+      new Promise((_, reject) => setTimeout(() => reject(new Error(`timeout ${timeoutMs}ms`)), timeoutMs)),
+    ]);
+    return { ok: true, latencyMs: Date.now() - start };
+  } catch (error) {
+    return { ok: false, latencyMs: Date.now() - start, error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {

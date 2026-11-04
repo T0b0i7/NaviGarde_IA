@@ -1,4 +1,22 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, index } from "drizzle-orm/mysql-core";
+import { customType, int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, index } from "drizzle-orm/mysql-core";
+
+/**
+ * Binaire volumineux stocké en base (`LONGBLOB`).
+ *
+ * Choisi volontairement à la place de `longblob` type natif de Drizzle : le
+ * driver mysql2 renvoie un `Buffer` pour les colonnes binaires, alors qu'un
+ * `text` renverrait une chaîne altérée par l'encodage. Le `mapToDriverValue`
+ * garantit que l'écriture ne transforme jamais les octets.
+ */
+const longBlob = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "longblob";
+  },
+  toDriver(value: Buffer) {
+    return value;
+  },
+});
+
 
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
@@ -267,6 +285,30 @@ export const vesselPositions = mysqlTable("vessel_positions", {
   source: varchar("source", { length: 40 }).default("mobile").notNull(),
   capturedAt: timestamp("capturedAt").defaultNow().notNull(),
 }, (table) => ({ vesselIndex: index("vessel_positions_vessel_idx").on(table.vesselId), capturedIndex: index("vessel_positions_captured_idx").on(table.capturedAt) }));
+
+// -----------------------------------------------------------------------------
+// Stockage des fichiers (photos d'inspection, PDF de rapports)
+// -----------------------------------------------------------------------------
+// Les fichiers sont écrits dans MySQL et non sur le disque du conteneur : un
+// conteneur recréé repart d'une image vide, ce qui perdait toutes les photos
+// et tous les PDF en production. La base est la seule ressource durable
+// garantie par l'exploitation retenue.
+//
+// Avantages : sauvegarde et restauration suivent celles de la base, aucune
+// dépendance externe (S3, volume, NFS), mêmes droits que les données métier.
+// Contrainte : les binaires volumineux ne doivent pas dépasser `max_allowed_
+// packet` de MySQL ; l'application limite les images à 10 Mo avant écriture.
+export const storageObjects = mysqlTable("storage_objects", {
+  id: int("id").autoincrement().primaryKey(),
+  storageKey: varchar("storageKey", { length: 512 }).notNull().unique(),
+  contentType: varchar("contentType", { length: 120 }).notNull(),
+  sizeBytes: int("sizeBytes").notNull(),
+  sha256: varchar("sha256", { length: 64 }).notNull(),
+  data: longBlob("data").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({ keyIndex: index("storage_objects_key_idx").on(table.storageKey), createdIndex: index("storage_objects_created_idx").on(table.createdAt) }));
+
+export type StorageObject = typeof storageObjects.$inferSelect;
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
