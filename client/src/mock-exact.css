@@ -49,7 +49,7 @@
 .table-scroll::-webkit-scrollbar-thumb { background: #c6d7e8; border-radius: 999px; }
 .table-scroll::-webkit-scrollbar-thumb:hover { background: #a7c0d8; }
 
-.anomalies-table { width: 100%; min-width: 920px; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
+.anomalies-table { width: 100%; min-width: 760px; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
 .anomalies-table thead th {
   white-space: normal;
   overflow-wrap: anywhere;
@@ -73,9 +73,9 @@
 .anomalies-table tbody tr:hover { background: #eef6fd; }
 .anomalies-table tbody td:nth-child(1) { font-variant-numeric: tabular-nums; color: #5b7a96; font-weight: 700; }
 .anomalies-table tbody td:nth-child(3),
-.anomalies-table tbody td:nth-child(6) { min-width: 220px; }
+.anomalies-table tbody td:nth-child(6) { min-width: 0; }
 .anomalies-table tbody td:nth-child(4),
-.anomalies-table tbody td:nth-child(5) { min-width: 104px; }
+.anomalies-table tbody td:nth-child(5) { min-width: 0; }
 .anomalies-table tbody td:nth-child(4) .bdg,
 .anomalies-table tbody td:nth-child(5) .bdg { white-space: normal; overflow-wrap: anywhere; text-align: left; line-height: 1.25; }
 .anomalies-table tbody td .bdg {
@@ -172,5 +172,5 @@
   .mock-table:not(.anomalies-table) td { display: block; width: 100%; }
   .mock-table:not(.anomalies-table) tbody tr { border: 1px solid #e3ecf4; border-radius: 12px; margin-bottom: 10px; padding: 8px; }
   .mock-table:not(.anomalies-table) tbody td { border: 0; padding: 6px 8px; }
-  .anomalies-table { min-width: 780px; }
+  .anomalies-table { min-width: 720px; }
 }

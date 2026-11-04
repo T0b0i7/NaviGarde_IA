@@ -112,7 +112,7 @@ export default function ReportDetail() {
             <div className="mock-card"><div className="mock-card-h"><h3 style={{ color: "#b91c1c" }}><AlertTriangle size={15} /> {t("rpd.anoms")} ({findings.length})</h3></div>
               <div className="table-scroll" style={{ padding: "0 12px 12px" }}>
                 {findings.length === 0 ? <EmptyState title={t("rpd.noAnoms")} /> : (
-                <table className="mock-table anomalies-table"><colgroup><col style={{ width: "6%" }} /><col style={{ width: "16%" }} /><col style={{ width: "38%" }} /><col style={{ width: "12%" }} /><col style={{ width: "13%" }} /><col style={{ width: "15%" }} /></colgroup><thead><tr><th>#</th><th>{t("rpd.cat")}</th><th>{t("rpd.issue")}</th><th>{t("rpd.risk")}</th><th>{t("c.status")}</th><th>{t("rpd.rec")}</th></tr></thead><tbody>
+                <table className="mock-table anomalies-table"><colgroup><col style={{ width: "5%" }} /><col style={{ width: "15%" }} /><col style={{ width: "34%" }} /><col style={{ width: "12%" }} /><col style={{ width: "14%" }} /><col style={{ width: "20%" }} /></colgroup><thead><tr><th>#</th><th>{t("rpd.cat")}</th><th>{t("rpd.issue")}</th><th>{t("rpd.risk")}</th><th>{t("c.status")}</th><th>{t("rpd.rec")}</th></tr></thead><tbody>
                   {findings.map((f, i) => (
                     <tr key={f.id}><td>{i + 1}</td><td>{f.anomalyType}</td><td>{f.description}</td>
                       <td><span className={`bdg ${f.riskLevel === "critique" ? "bdg-red" : f.riskLevel === "eleve" ? "bdg-orange" : "bdg-yellow"}`}>{f.riskLevel}</span></td>
