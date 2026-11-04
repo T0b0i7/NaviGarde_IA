@@ -15,6 +15,7 @@ export default function InspectionDetail() {
   const [tab, setTab] = useState("overview");
   const q = trpc.data.inspections.get.useQuery({ id }, { enabled: id > 0 });
   const createReport = trpc.data.reports.createFromInspection.useMutation({ onSuccess: (r) => { toast.success(r.reference); navigate(`/rapports/${r.id}`); }, onError: (e) => toast.error(e.message) });
+  const reportsQ = trpc.data.reports.list.useQuery({ limit: 200 }, { enabled: id > 0 });
 
   const insp = q.data?.inspection;
   const vessel = q.data?.vessel;
@@ -22,6 +23,11 @@ export default function InspectionDetail() {
   const findings = q.data?.findings ?? [];
   const score = insp ? 100 - insp.riskScore : 0;
   const done = insp && ["validee", "terminee", "cloturee"].includes(insp.status);
+  const existingReport = (reportsQ.data ?? []).find((r) => r.inspectionId === insp?.id);
+  const openReport = () => {
+    if (existingReport) { navigate(`/rapports/${existingReport.id}`); return; }
+    if (insp) createReport.mutate({ inspectionId: insp.id });
+  };
 
   if (q.isLoading) return <AppShell><div style={{ padding: 16, display: "grid", gap: 12 }}><Skeleton style={{ height: 28, width: 200 }} /><Skeleton style={{ height: 220, borderRadius: 12 }} /><TableSkeleton rows={3} cols={6} /></div></AppShell>;
   if (q.isError) return <AppShell><ErrorState message={q.error.message} onRetry={() => q.refetch()} /></AppShell>;
@@ -82,7 +88,7 @@ export default function InspectionDetail() {
           </div>
 
           <div className="mock-card"><div className="mock-card-h"><h3 style={{ color: "#b91c1c" }}><AlertTriangle size={15} /> {t("inspd.anoms")} ({findings.length})</h3></div>
-            <div style={{ padding: "0 12px 12px" }}>{findings.length === 0 ? <EmptyState title={t("inspd.noAnom")} /> : (
+            <div style={{ padding: "0 12px 12px", overflowX: "auto" }}>{findings.length === 0 ? <EmptyState title={t("inspd.noAnom")} /> : (
             <table className="mock-table"><thead><tr><th>N°</th><th>{t("inspd.colCat")}</th><th>{t("inspd.colIssue")}</th><th>{t("inspd.colRisk")}</th><th>{t("inspd.colStatus")}</th><th>{t("inspd.colReco")}</th></tr></thead><tbody>
               {findings.map((f, i) => <tr key={f.id}><td>{i + 1}</td><td>{f.anomalyType}</td><td style={{ fontSize: 12 }}>{f.description}</td><td><span className={`bdg ${f.riskLevel === "critique" ? "bdg-red" : f.riskLevel === "eleve" ? "bdg-orange" : "bdg-yellow"}`}>{f.riskLevel}</span></td><td><span className="bdg bdg-gray">{f.humanStatus}</span></td><td style={{ fontSize: 12 }}>{f.recommendation ?? "-"}</td></tr>)}
             </tbody></table>)}</div>
@@ -113,7 +119,7 @@ export default function InspectionDetail() {
               <button className="btn-outline-blue" style={{ fontSize: 11.5 }} onClick={() => navigate("/inspections/new")}><Plus size={14} /> {t("inspd.newInsp")}</button>
               <button className="btn-outline-blue" style={{ fontSize: 11.5 }} onClick={() => window.print()}><Printer size={14} /> {t("inspd.exportPdf")}</button>
             </div>
-            <button className="btn-blue" disabled={createReport.isPending} onClick={() => createReport.mutate({ inspectionId: insp.id })}><Eye size={15} /> {createReport.isPending ? t("inspd.generating") : `${t("inspd.openReport")} →`}</button>
+            <button className="btn-blue" disabled={createReport.isPending} onClick={openReport}><Eye size={15} /> {createReport.isPending ? t("inspd.generating") : `${t("inspd.openReport")} →`}</button>
           </div>
         </div>
       </div>

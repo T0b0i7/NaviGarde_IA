@@ -9,6 +9,10 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { registerStorageProxy } from "./storageProxy";
 import { logger } from "./logger";
+import { authenticateLocalRequest } from "./localAuth";
+import { uploadsDir } from "../storage";
+import { renderReportPdf } from "../reportPdf";
+import { getInspection, getReport } from "../db";
 
 async function startServer() {
   const app = express();
@@ -48,6 +52,49 @@ async function startServer() {
   app.use(express.json({ limit: "15mb" }));
   app.use(express.urlencoded({ limit: "15mb", extended: true }));
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+  app.use(
+    "/uploads",
+    express.static(uploadsDir(), {
+      maxAge: "7d",
+      setHeaders: (res) => {
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+      },
+    })
+  );
+  app.get("/api/reports/:id/pdf", async (req, res) => {
+    try {
+      const user = await authenticateLocalRequest(req);
+      if (!user) {
+        res.status(401).json({ error: "Authentification requise" });
+        return;
+      }
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id) || id <= 0) {
+        res.status(400).json({ error: "Identifiant invalide" });
+        return;
+      }
+      const report = await getReport(id);
+      if (!report) {
+        res.status(404).json({ error: "Rapport introuvable" });
+        return;
+      }
+      const inspection = report.inspectionId ? await getInspection(report.inspectionId) : undefined;
+      const privileged = ["admin", "supervisor"].includes(String(user.appRole));
+      if (!privileged && inspection?.agentId !== user.id) {
+        res.status(403).json({ error: "Acces a ce rapport refuse" });
+        return;
+      }
+      const pdf = await renderReportPdf(id);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="rapport-${id}.pdf"`);
+      res.setHeader("Cache-Control", "no-store");
+      res.send(pdf);
+    } catch (error) {
+      logger.error({ err: error }, "Report PDF generation failed");
+      res.status(500).json({ error: "Generation PDF impossible" });
+    }
+  });
   registerStorageProxy(app);
   // tRPC API
   app.use(

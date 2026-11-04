@@ -106,6 +106,10 @@ temp/
 *.sqlite
 *.sqlite3
 
+# User uploads (photos d'inspection, PDF archives) - donnees runtime
+public/uploads/
+dist/public/uploads/
+
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
 

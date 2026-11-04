@@ -50,6 +50,23 @@ export async function storageGet(relKey: string): Promise<{ key: string; url: st
   return { key, url: `/uploads/${key}` };
 }
 
+export function uploadsDir() {
+  return path.resolve(process.cwd(), "public", "uploads");
+}
+
+export async function storageRead(relKey: string): Promise<Buffer | null> {
+  try {
+    const key = normalizeKey(relKey);
+    const base = uploadsDir();
+    const localPath = path.resolve(base, key);
+    if (!localPath.startsWith(base)) return null;
+    const { readFile } = await import("node:fs/promises");
+    return await readFile(localPath);
+  } catch {
+    return null;
+  }
+}
+
 export async function storageGetSignedUrl(relKey: string): Promise<string> {
   const key = normalizeKey(relKey);
   return `/uploads/${key}`;

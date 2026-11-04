@@ -32,6 +32,11 @@ export default function ReportDetail() {
   const dt = (d: string | Date) => new Date(d).toLocaleString(locale);
 
   const share = async () => { try { await navigator.clipboard.writeText(window.location.href); toast.success(t("rpd.linkCopied")); } catch { toast.error(t("rpd.copyFail")); } };
+  const pdfHref = `/api/reports/${id}/pdf`;
+  const openPdf = () => {
+    const opened = window.open(pdfHref, "_blank", "noopener");
+    if (!opened) window.location.assign(pdfHref);
+  };
 
   if (q.isLoading) return <AppShell><div style={{ padding: 16, display: "grid", gap: 12 }}><Skeleton style={{ height: 28, width: 200 }} /><Skeleton style={{ height: 220, borderRadius: 12 }} /><ChartSkeleton height={180} /></div></AppShell>;
   if (q.isError) return <AppShell><ErrorState message={q.error.message} onRetry={() => q.refetch()} /></AppShell>;
@@ -53,7 +58,7 @@ export default function ReportDetail() {
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
         <div><h1 className="mock-h1">{t("rpd.title")}</h1><p className="mock-sub">{t("rpd.sub")}</p></div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="btn-outline-blue" style={{ width: "auto", padding: "0 16px" }} onClick={() => report.pdfUrl ? window.open(report.pdfUrl, "_blank") : toast.error(t("rpd.pdfNA"))}><Download size={15} /> {t("rpd.download")}</button>
+          <button className="btn-outline-blue" style={{ width: "auto", padding: "0 16px" }} onClick={openPdf}><Download size={15} /> {t("rpd.download")}</button>
           <button className="btn-outline-blue" style={{ width: "auto", padding: "0 16px" }} onClick={() => window.print()}><Printer size={15} /> {t("rpd.print")}</button>
           <button className="btn-outline-blue" style={{ width: "auto", padding: "0 16px" }} onClick={share}><Share2 size={15} /> {t("rpd.share")}</button>
         </div>
@@ -133,7 +138,7 @@ export default function ReportDetail() {
             <div className="mock-card"><div className="mock-card-b" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               <FileText size={28} color="#0d7fdd" />
               <div style={{ flex: 1 }}><strong style={{ fontSize: 14 }}>{report.reference} - v{report.version}</strong><div style={{ fontSize: 11, color: "#7b93a8", fontFamily: "monospace" }}>{t("rpd.sha")} : {report.pdfSha256 ?? "-"}</div></div>
-              <button className="btn-blue" style={{ padding: "0 18px" }} onClick={() => report.pdfUrl && window.open(report.pdfUrl, "_blank")}><Download size={15} /> PDF</button>
+              <button className="btn-blue" style={{ padding: "0 18px" }} onClick={openPdf}><Download size={15} /> PDF</button>
             </div></div>
           )}
         </div>
@@ -164,7 +169,7 @@ export default function ReportDetail() {
                 return <div key={item.id || i} className="tl-item"><span className="tl-dot" /><div><strong>{item.action}</strong><small>{dt(item.createdAt)}{item.userId ? ` · ${t("rpd.byAgent")} #${item.userId}` : ` · ${t("rpd.bySystem")}`}</small></div></div>;
               })}
             </div>
-            <button className="btn-blue" onClick={() => report.pdfUrl && window.open(report.pdfUrl, "_blank")}><Eye size={15} /> {t("rpd.openFull")} →</button>
+            <button className="btn-blue" onClick={openPdf}><Eye size={15} /> {t("rpd.openFull")} →</button>
           </div>
         </div>
       </div>
