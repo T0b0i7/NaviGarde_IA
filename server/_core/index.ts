@@ -48,6 +48,13 @@ async function startServer() {
     legacyHeaders: false,
   });
   app.use(globalLimiter);
+  const pdfLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Trop de generations de PDF, reessayez dans quelques minutes" },
+  });
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "15mb" }));
   app.use(express.urlencoded({ limit: "15mb", extended: true }));
@@ -62,7 +69,7 @@ async function startServer() {
       },
     })
   );
-  app.get("/api/reports/:id/pdf", async (req, res) => {
+  app.get("/api/reports/:id/pdf", pdfLimiter, async (req, res) => {
     try {
       const user = await authenticateLocalRequest(req);
       if (!user) {
