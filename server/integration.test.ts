@@ -1,11 +1,8 @@
-process.env.DATABASE_URL = "mysql://root:@localhost:3306/navigarde";
-
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { appRouter } from "./routers";
-import { createContext } from "./_core/context";
+import { testConnection, hasDatabase, assertLeastPrivilege } from "./testDb";
 import { hashPassword } from "./_core/localAuth";
 import { drizzle } from "drizzle-orm/mysql2";
-import mysql from "mysql2/promise";
 import * as schema from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 
@@ -15,11 +12,17 @@ const TEST_PASSWORD = "IntegrationTest123!";
 let testUserId: number;
 let ctx: any;
 
+// Tests d'intégration : nécessitent une base réelle. Sans DATABASE_URL, ils
+// sont ignorés plutôt que de fabriquer une connexion privilégiée.
+const suite = hasDatabase() ? describe : describe.skip;
+
 beforeAll(async () => {
-  const connection = await mysql.createConnection({ host: "localhost", port: 3306, user: "root", password: "" });
-  await connection.query("USE navigarde;");
+  if (!hasDatabase()) return;
+  assertLeastPrivilege();
+  const connection = await testConnection();
   const db = drizzle(connection);
 
+  await db.delete(schema.users).where(eq(schema.users.email, TEST_EMAIL));
   const hash = await hashPassword(TEST_PASSWORD);
   const result = await db.insert(schema.users).values({
     openId: "integration-test",
@@ -33,24 +36,24 @@ beforeAll(async () => {
   }).execute();
   testUserId = Number(result[0].insertId);
 
-  const { authenticateLocalRequest } = await import("./_core/localAuth");
   ctx = {
     user: { id: testUserId, openId: "integration-test", name: "Integration Test", email: TEST_EMAIL, loginMethod: "local", role: "admin", appRole: "admin", passwordHash: hash, isActive: 1, createdAt: new Date(), updatedAt: new Date(), lastSignedIn: new Date() },
-    req: { headers: {}, protocol: "https" } as any,
+    req: { headers: {}, protocol: "https", ip: "127.0.0.1" } as any,
     res: { cookie: () => {}, clearCookie: () => {} } as any,
+    csrfToken: "",
   };
   await connection.end();
 });
 
 afterAll(async () => {
-  const connection = await mysql.createConnection({ host: "localhost", port: 3306, user: "root", password: "" });
-  await connection.query("USE navigarde;");
+  if (!hasDatabase()) return;
+  const connection = await testConnection();
   const db = drizzle(connection);
   await db.delete(schema.users).where(eq(schema.users.email, TEST_EMAIL));
   await connection.end();
 });
 
-describe("Intégration - Auth et Bulletins", () => {
+suite("Intégration - Auth et Bulletins", () => {
   it("crée un utilisateur et vérifie qu'il est en base", async () => {
     const { getUserByEmail } = await import("./db");
     const user = await getUserByEmail(TEST_EMAIL);

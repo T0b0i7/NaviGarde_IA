@@ -2,12 +2,25 @@ import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import * as schema from "../drizzle/schema";
 
+/**
+ * Jeu de données de DÉMONSTRATION (jamais en production).
+ *
+ * La connexion vient de SEED_DATABASE_URL — le compte de migration, qui peut
+ * créer la base. L'application (navigarde_app) n'a volontairement pas ce droit.
+ */
 async function main() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Seed refusé en production : jeu de données de démonstration.");
+  }
+  const raw = process.env.SEED_DATABASE_URL ?? process.env.MIGRATION_DATABASE_URL;
+  if (!raw) throw new Error("SEED_DATABASE_URL (ou MIGRATION_DATABASE_URL) requis pour le seed.");
+
+  const url = new URL(raw);
   const connection = await mysql.createConnection({
-    host: "localhost",
-    port: 3306,
-    user: "root",
-    password: "",
+    host: url.hostname,
+    port: Number(url.port || 3306),
+    user: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
   });
 
   await connection.query(

@@ -1,7 +1,33 @@
 import mysql from "mysql2/promise";
+import dotenv from "dotenv";
+import path from "node:path";
+
+/**
+ * Contrôle de synchronisation API <-> Drizzle <-> MySQL.
+ *
+ * La connexion vient de DATABASE_URL — le même compte que l'application.
+ * Un contrôle lancé en root ne prouverait rien du fonctionnement réel.
+ */
+
+dotenv.config({ path: path.resolve(import.meta.dirname, "..", ".env") });
+
+function connectionOptions() {
+  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL absent : renseignez le .env (voir DEPLOYMENT.md).");
+  const url = new URL(process.env.DATABASE_URL);
+  const user = decodeURIComponent(url.username);
+  if (user === "root") throw new Error("Compte root refusé : utilisez le compte applicatif navigarde_app.");
+  console.log(`Compte utilisé : ${user} @ ${url.hostname}:${url.port || 3306}`);
+  return {
+    host: url.hostname,
+    port: Number(url.port || 3306),
+    user,
+    password: decodeURIComponent(url.password),
+    database: url.pathname.replace(/^\//, ""),
+  };
+}
 
 async function main() {
-  const c = await mysql.createConnection({ host: "localhost", port: 3306, user: "root", password: "", database: "navigarde" });
+  const c = await mysql.createConnection(connectionOptions());
   console.log("=== VERIFICATION SYNCHRO BD ===");
   const [tables]: any = await c.query("SHOW TABLES");
   console.log(`Tables: ${tables.length}`);
@@ -31,7 +57,7 @@ async function main() {
     }
   }
 
-  // Test écriture/lecture/suppression cycle complet
+  // Cycle complet en écriture, avec les droits réduits du compte applicatif.
   console.log("\n--- Test cycle CRUD ---");
   const reg = `TEST-${Date.now()}`;
   const [vRes]: any = await c.query("INSERT INTO vessels (registrationNumber, type, ownerName, capacity, place, status, riskScore) VALUES (?, 'Pirogue', 'Test Sync', 10, 'Cotonou', 'conforme', 0)", [reg]);
@@ -52,20 +78,24 @@ async function main() {
   const [bRes]: any = await c.query("INSERT INTO maritime_bulletins (title, category, maritimeZone, content, status) VALUES ('Test sync', 'Test', 'Cotonou', 'contenu test', 'brouillon')");
   console.log(`OK bulletins.create id=${bRes.insertId}`);
 
-  // Nettoyage test
+  // Nettoyage (ordre compatible avec les clés étrangères).
   await c.query("DELETE FROM maritime_bulletins WHERE id=?", [bRes.insertId]);
   await c.query("DELETE FROM reports WHERE id=?", [rRes.insertId]);
   await c.query("DELETE FROM alerts WHERE id=?", [aid]);
   await c.query("DELETE FROM inspections WHERE id=?", [iid]);
   await c.query("DELETE FROM vessels WHERE id=?", [vid]);
-  console.log("OK nettoyage test (lignes test supprimées)");
+  console.log("OK nettoyage test (lignes test supprimees)");
 
-  // Migrations
   const [mig]: any = await c.query("SELECT COUNT(*) as n FROM __drizzle_migrations");
-  console.log(`\nMigrations appliquées: ${mig[0].n}`);
+  console.log(`\nMigrations appliquees: ${mig[0].n}`);
+
+  const [fk]: any = await c.query(
+    "SELECT COUNT(*) as n FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL",
+  );
+  console.log(`Clés étrangères: ${fk[0].n}`);
 
   await c.end();
-  console.log("\n=== SYNC OK : API tRPC <-> Drizzle <-> MySQL fonctionnelle ===");
+  console.log("\n=== SYNC OK : API tRPC <-> Drizzle <-> MySQL avec droits reduits ===");
   process.exit(0);
 }
-main().catch((e) => { console.error("FAIL:", e); process.exit(1); });
+main().catch((e) => { console.error("FAIL:", e.message); process.exit(1); });

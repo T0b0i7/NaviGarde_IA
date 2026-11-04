@@ -9,8 +9,20 @@ const ACCOUNTS = [
 ] as const;
 
 async function main() {
-  const c = await mysql.createConnection({ host: "localhost", port: 3306, user: "root", password: "", database: "navigarde" });
-  console.log("Création des comptes par rôle...\n");
+  // Connexion issue de DATABASE_URL : en CI, le pipeline fournit le compte de
+  // migration ; en local, navigarde_app suffit (INSERT/UPDATE accordés).
+  // Plus aucune connexion en root codée en dur.
+  const raw = process.env.DATABASE_URL;
+  if (!raw) throw new Error("DATABASE_URL absent : renseignez le .env ou l'environnement.");
+  const url = new URL(raw);
+  const c = await mysql.createConnection({
+    host: url.hostname,
+    port: Number(url.port || 3306),
+    user: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
+    database: url.pathname.replace(/^\//, ""),
+  });
+  console.log(`Création des comptes par rôle (compte : ${decodeURIComponent(url.username)})...\n`);
   for (const a of ACCOUNTS) {
     const hash = await hashPassword(a.password);
     const [existing]: any = await c.query("SELECT id FROM users WHERE email=?", [a.email]);

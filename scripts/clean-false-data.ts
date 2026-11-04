@@ -1,13 +1,7 @@
-import mysql from "mysql2/promise";
+import { adminConnection } from "./adminDb";
 
 async function main() {
-  const connection = await mysql.createConnection({
-    host: "localhost",
-    port: 3306,
-    user: "root",
-    password: "",
-    database: "navigarde",
-  });
+  const connection = await adminConnection();
 
   console.log("Nettoyage des fausses donnees...");
 

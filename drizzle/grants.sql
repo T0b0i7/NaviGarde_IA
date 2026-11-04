@@ -1,0 +1,22 @@
+-- =============================================================================
+-- NaviGarde IA — privilèges du compte applicatif MySQL (référence)
+-- -----------------------------------------------------------------------------
+-- L'application ne doit JAMAIS se connecter en root.
+--
+-- Ce fichier ne contient AUCUN secret. Les commandes exactes à exécuter, y
+-- compris la génération du mot de passe et la bascule de DATABASE_URL, sont
+-- documentées dans DEPLOYMENT.md section « Compte MySQL dédié ».
+--
+-- Principe : moins de droits que possibles.
+--   GRANT SELECT, INSERT, UPDATE, DELETE ON `navigarde`.* TO 'navigarde_app'@'localhost';
+--
+-- Jamais accordés au compte applicatif :
+--   * privilège global (*.*)
+--   * CREATE / ALTER / DROP / INDEX (le schéma appartient au pipeline)
+--   * FILE, PROCESS, SUPER, GRANT OPTION
+--
+-- Les migrations Drizzle sont appliquées par un compte distinct, voir
+-- grants-migrations.sql.
+-- =============================================================================
+
+SHOW GRANTS FOR 'navigarde_app'@'localhost';
