@@ -233,3 +233,5 @@ html.dark .audit-kv { border-bottom-color: var(--border-primary); }
 html.dark .audit-kv span { color: var(--text-secondary-2); }
 html.dark .audit-kv strong { color: var(--text-primary); }
 html.dark .audit-json { background: #04101f; color: var(--text-secondary); }
+html.dark .btn-outline-blue.danger { color: #ff8fa0; border-color: rgba(255,51,79,0.45); }
+html.dark .btn-outline-blue.danger:hover { background: rgba(255,51,79,0.12); border-color: #FF334F; }

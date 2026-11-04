@@ -6,6 +6,7 @@ import AppShell from "@/components/AppShell";
 import { trpc } from "@/lib/trpc";
 import { useLang } from "@/i18n/LanguageContext";
 import { EmptyState, ErrorState, Skeleton, TableSkeleton } from "@/components/DashboardStates";
+import { ArchiveButton } from "@/components/ArchiveButton";
 
 export default function VesselDetail() {
   const { t, locale } = useLang();
@@ -16,6 +17,14 @@ export default function VesselDetail() {
   const q = trpc.data.vessels.get.useQuery({ id }, { enabled: id > 0 });
   const utils = trpc.useUtils();
   const updateMut = trpc.data.vessels.update.useMutation({ onSuccess: () => { utils.data.vessels.get.invalidate({ id }); toast.success(t("vsd.updated")); }, onError: (e) => toast.error(e.message) });
+  const archiveMut = trpc.data.vessels.remove.useMutation({
+    onSuccess: () => { utils.data.vessels.list.invalidate(); toast.success(t("c.archive")); navigate("/embarcations"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const restoreMut = trpc.data.vessels.restore.useMutation({
+    onSuccess: () => { utils.data.vessels.list.invalidate(); utils.data.vessels.get.invalidate({ id }); toast.success(t("c.restore")); },
+    onError: (e) => toast.error(e.message),
+  });
 
   const v = q.data?.vessel;
   const inspections = q.data?.inspections ?? [];
@@ -45,6 +54,7 @@ export default function VesselDetail() {
           <button className="btn-outline-blue" style={{ width: "auto", padding: "0 16px" }} onClick={() => window.print()}><Printer size={15} /> {t("vsd.print")}</button>
           <button className="btn-outline-blue" style={{ width: "auto", padding: "0 16px" }} onClick={() => last && navigate(`/inspections/${last.id}`)}><Download size={15} /> {t("vsd.dl")}</button>
           <button className="btn-outline-blue" style={{ width: "auto", padding: "0 16px" }} onClick={async () => { try { await navigator.clipboard.writeText(window.location.href); toast.success(t("vsd.linkCopied")); } catch {} }}><Share2 size={15} /> {t("vsd.share")}</button>
+          {canEdit && <ArchiveButton variant="text" archived={Boolean(v.archivedAt)} label={`${v.registrationNumber} - ${v.name ?? ""}`} onConfirm={() => (v.archivedAt ? restoreMut.mutateAsync({ id: v.id }) : archiveMut.mutateAsync({ id: v.id }))} />}
         </div>
       </div>
       <div style={{ height: 14 }} />

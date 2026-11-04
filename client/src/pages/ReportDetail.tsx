@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { AlertTriangle, ArrowLeft, BarChart3, CalendarDays, Camera, Check, Clock3, Cpu, Download, Eye, FileText, Images, Lightbulb, MapPin, MessageSquare, Printer, Share2, ShieldCheck, Ship, User } from "lucide-react";
-import { Link, useRoute } from "wouter";
+import { Link, useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 import AppShell from "@/components/AppShell";
 import { trpc } from "@/lib/trpc";
 import { useLang } from "@/i18n/LanguageContext";
 import { ChartSkeleton, EmptyState, ErrorState, Skeleton, TableSkeleton } from "@/components/DashboardStates";
+import { ArchiveButton } from "@/components/ArchiveButton";
 
 type Conf = "ok" | "minor" | "major" | "crit";
 function confOf(risk: number): Conf { if (risk >= 75) return "crit"; if (risk >= 50) return "major"; if (risk >= 25) return "minor"; return "ok"; }
@@ -16,7 +17,19 @@ export default function ReportDetail() {
   const [, params] = useRoute("/rapports/:id");
   const id = Number(params?.id ?? 0);
   const [tab, setTab] = useState("overview");
+  const [, navigate] = useLocation();
+  const utils = trpc.useUtils();
+  const me = trpc.auth.me.useQuery(undefined, { retry: false });
+  const canManage = me.data?.appRole === "admin" || me.data?.appRole === "supervisor";
   const q = trpc.data.reports.get.useQuery({ id }, { enabled: id > 0 });
+  const archiveMut = trpc.data.reports.archive.useMutation({
+    onSuccess: () => { utils.data.reports.list.invalidate(); toast.success(t("c.archive")); navigate("/rapports"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const restoreMut = trpc.data.reports.restore.useMutation({
+    onSuccess: () => { utils.data.reports.list.invalidate(); toast.success(t("c.restore")); },
+    onError: (e) => toast.error(e.message),
+  });
 
   const report = q.data?.report;
   const insp = q.data?.inspection;
@@ -61,6 +74,7 @@ export default function ReportDetail() {
           <button className="btn-outline-blue" style={{ width: "auto", padding: "0 16px" }} onClick={openPdf}><Download size={15} /> {t("rpd.download")}</button>
           <button className="btn-outline-blue" style={{ width: "auto", padding: "0 16px" }} onClick={() => window.print()}><Printer size={15} /> {t("rpd.print")}</button>
           <button className="btn-outline-blue" style={{ width: "auto", padding: "0 16px" }} onClick={share}><Share2 size={15} /> {t("rpd.share")}</button>
+          {canManage && <ArchiveButton variant="text" archived={Boolean(report.archivedAt)} label={report.reference} onConfirm={() => (report.archivedAt ? restoreMut.mutateAsync({ id: report.id }) : archiveMut.mutateAsync({ id: report.id }))} />}
         </div>
       </div>
       <div style={{ height: 14 }} />

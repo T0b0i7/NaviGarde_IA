@@ -6,10 +6,11 @@ type ArchiveButtonProps = {
   archived?: boolean;
   label?: string;
   disabled?: boolean;
+  variant?: "icon" | "text";
   onConfirm: () => Promise<unknown> | unknown;
 };
 
-export function ArchiveButton({ archived = false, label, disabled, onConfirm }: ArchiveButtonProps) {
+export function ArchiveButton({ archived = false, label, disabled, variant = "icon", onConfirm }: ArchiveButtonProps) {
   const { t } = useLang();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -32,7 +33,8 @@ export function ArchiveButton({ archived = false, label, disabled, onConfirm }: 
     <>
       <button
         type="button"
-        className={`icon-sq ${archived ? "restore" : "danger"}`}
+        className={variant === "text" ? `btn-outline-blue${archived ? "" : " danger"}` : `icon-sq ${archived ? "restore" : "danger"}`}
+        style={variant === "text" ? { width: "auto", padding: "0 16px" } : undefined}
         title={archived ? t("c.restore") : t("c.archive")}
         aria-label={archived ? t("c.restore") : t("c.archive")}
         disabled={disabled}
@@ -42,6 +44,7 @@ export function ArchiveButton({ archived = false, label, disabled, onConfirm }: 
         }}
       >
         {archived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
+        {variant === "text" ? <span style={{ marginLeft: 6 }}>{archived ? t("c.restore") : t("c.archive")}</span> : null}
       </button>
 
       {open && (

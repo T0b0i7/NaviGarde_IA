@@ -6,6 +6,7 @@ import AppShell from "@/components/AppShell";
 import { trpc } from "@/lib/trpc";
 import { useLang } from "@/i18n/LanguageContext";
 import { EmptyState, ErrorState, Skeleton, TableSkeleton } from "@/components/DashboardStates";
+import { ArchiveButton } from "@/components/ArchiveButton";
 
 export default function InspectionDetail() {
   const { t, locale } = useLang();
@@ -16,6 +17,17 @@ export default function InspectionDetail() {
   const q = trpc.data.inspections.get.useQuery({ id }, { enabled: id > 0 });
   const createReport = trpc.data.reports.createFromInspection.useMutation({ onSuccess: (r) => { toast.success(r.reference); navigate(`/rapports/${r.id}`); }, onError: (e) => toast.error(e.message) });
   const reportsQ = trpc.data.reports.list.useQuery({ limit: 200 }, { enabled: id > 0 });
+  const utils = trpc.useUtils();
+  const me = trpc.auth.me.useQuery(undefined, { retry: false });
+  const canManage = me.data?.appRole === "admin" || me.data?.appRole === "supervisor";
+  const archiveMut = trpc.data.inspections.archive.useMutation({
+    onSuccess: () => { utils.data.inspections.list.invalidate(); toast.success(t("c.archive")); navigate("/inspections"); },
+    onError: (e) => toast.error(e.message),
+  });
+  const restoreMut = trpc.data.inspections.restore.useMutation({
+    onSuccess: () => { utils.data.inspections.list.invalidate(); toast.success(t("c.restore")); },
+    onError: (e) => toast.error(e.message),
+  });
 
   const insp = q.data?.inspection;
   const vessel = q.data?.vessel;
@@ -39,8 +51,15 @@ export default function InspectionDetail() {
   return (
     <AppShell>
       <Link href="/inspections" className="mock-back"><ArrowLeft size={14} /> {t("inspd.back")}</Link>
-      <h1 className="mock-h1">{t("inspd.title")}</h1>
-      <p className="mock-sub">{t("inspd.sub")}</p>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
+        <div>
+          <h1 className="mock-h1">{t("inspd.title")}</h1>
+          <p className="mock-sub">{t("inspd.sub")}</p>
+        </div>
+        {canManage && insp.archivedAt !== undefined && (
+          <ArchiveButton variant="text" archived={Boolean(insp.archivedAt)} label={`Inspection #${insp.id} - ${insp.place}`} onConfirm={() => (insp.archivedAt ? restoreMut.mutateAsync({ id: insp.id }) : archiveMut.mutateAsync({ id: insp.id }))} />
+        )}
+      </div>
       <div style={{ height: 14 }} />
 
       <div className="mock-page" style={{ gridTemplateColumns: "minmax(0,1fr) 300px" }}>
