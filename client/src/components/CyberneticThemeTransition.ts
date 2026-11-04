@@ -58,7 +58,7 @@ function wait(ms: number) {
 
 function closed(el: HTMLDivElement) {
   return new Promise<void>((resolve) => {
-    const fallback = window.setTimeout(resolve, 420);
+    const fallback = window.setTimeout(resolve, 700);
     el.addEventListener("animationend", () => { window.clearTimeout(fallback); resolve(); }, { once: true });
   });
 }
@@ -77,8 +77,10 @@ export async function playCyberneticTransition(from: "light" | "dark", apply: ()
 
   apply();
   portal.root.classList.remove("is-closing");
-  portal.root.classList.add("is-flash", "is-opening");
-  await wait(720);
+  portal.root.classList.add("is-flash");
+  await wait(150);
+  portal.root.classList.add("is-opening");
+  await wait(1100);
 
   portal.root.remove();
   if (active === portal) active = null;

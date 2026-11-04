@@ -476,16 +476,16 @@ html.dark .btn-outline-blue.danger:hover { background: rgba(255,51,79,0.12); bor
   background: radial-gradient(circle, rgba(205, 250, 255, 0.92) 0%, rgba(0, 212, 255, 0.42) 22%, rgba(0, 168, 255, 0.1) 46%, transparent 66%);
   mix-blend-mode: screen;
 }
-.ng-portal.is-closing .ng-door-left { animation: ng-door-close-left 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-.ng-portal.is-closing .ng-door-right { animation: ng-door-close-right 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-.ng-portal.is-closing .ng-beam { animation: ng-beam-in 300ms 40ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-.ng-portal.is-closing .ng-emblem { animation: ng-emblem-in 300ms 110ms ease-out forwards; }
-.ng-portal.is-opening .ng-door-left { animation: ng-door-open-left 680ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-.ng-portal.is-opening .ng-door-right { animation: ng-door-open-right 680ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-.ng-portal.is-opening .ng-emblem { animation: ng-emblem-out 240ms ease-in forwards; }
-.ng-portal.is-opening .ng-beam { animation: ng-beam-out 380ms ease-out forwards; }
-.ng-portal.is-flash .ng-flash { animation: ng-flash 300ms ease-out forwards; }
-.ng-portal.is-opening .ng-core { animation: ng-core-out 160ms ease-out forwards; }
+.ng-portal.is-closing .ng-door-left { animation: ng-door-close-left 560ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.ng-portal.is-closing .ng-door-right { animation: ng-door-close-right 560ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.ng-portal.is-closing .ng-beam { animation: ng-beam-in 560ms 60ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.ng-portal.is-closing .ng-emblem { animation: ng-emblem-in 560ms 180ms ease-out forwards; }
+.ng-portal.is-opening .ng-door-left { animation: ng-door-open-left 1000ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.ng-portal.is-opening .ng-door-right { animation: ng-door-open-right 1000ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.ng-portal.is-opening .ng-emblem { animation: ng-emblem-out 320ms ease-in forwards; }
+.ng-portal.is-opening .ng-beam { animation: ng-beam-out 560ms ease-out forwards; }
+.ng-portal.is-flash .ng-flash { animation: ng-flash 460ms ease-out forwards; }
+.ng-portal.is-opening .ng-core { animation: ng-core-out 300ms ease-out forwards; }
 @keyframes ng-door-close-left { from { transform: translate3d(-101%, 0, 0); } to { transform: translate3d(0, 0, 0); } }
 @keyframes ng-door-close-right { from { transform: translate3d(101%, 0, 0); } to { transform: translate3d(0, 0, 0); } }
 @keyframes ng-door-open-left { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-101%, 0, 0); } }
