@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { playThemeCurtain } from "./themeCurtain";
+import { playCyberneticTransition } from "../components/CyberneticThemeTransition";
 
 export type ThemeMode = "light" | "dark" | "auto";
 type Resolved = "light" | "dark";
@@ -59,12 +59,12 @@ export function ThemeProvider({ children, defaultTheme = "light", switchable = f
       setModeState(m);
       return;
     }
-    void playThemeCurtain(theme, () => setModeState(m));
+    void playCyberneticTransition(theme, () => setModeState(m));
   };
   const toggleTheme = switchable
     ? () => {
         const next: ThemeMode = theme === "dark" ? "light" : "dark";
-        void playThemeCurtain(theme, () => setModeState(next));
+        void playCyberneticTransition(theme, () => setModeState(next));
       }
     : undefined;
 

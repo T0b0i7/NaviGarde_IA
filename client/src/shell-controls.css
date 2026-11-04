@@ -267,174 +267,223 @@ html.dark .audit-json { background: #04101f; color: var(--text-secondary); }
 html.dark .btn-outline-blue.danger { color: #ff8fa0; border-color: rgba(255,51,79,0.45); }
 html.dark .btn-outline-blue.danger:hover { background: rgba(255,51,79,0.12); border-color: #FF334F; }
 
-
-/* ===== Voile de transition de thème — signature NaviGarde ===== */
-.ng-curtain {
+/* ===== CyberneticThemeTransition ===== */
+.ng-portal {
   position: fixed;
   inset: 0;
   z-index: 9999;
   overflow: hidden;
   pointer-events: none;
   contain: strict;
+  background: #01060f;
 }
-
-.ng-curtain-panel {
+.ng-core {
   position: absolute;
-  top: -6%;
-  height: 112%;
-  overflow: hidden;
-  isolation: isolate;
-  backface-visibility: hidden;
-  will-change: transform, background-position;
-  background-image:
-    repeating-linear-gradient(96deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 26px),
-    linear-gradient(115deg, #0e2a4c 0%, #0a1b35 45%, #06152b 100%);
-  background-position: 0 0, 0 0;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(0, 120, 190, 0) 0%, rgba(0, 168, 255, 0.35) 45%, rgba(120, 230, 255, 0.55) 50%, rgba(0, 168, 255, 0.35) 55%, rgba(0, 120, 190, 0) 100%);
 }
-
-/* le panneau droit est plus étroit : sa couture tombe exactement au centre */
-.ng-curtain-left {
-  left: 0;
-  width: 58%;
-  border-radius: 0 7% 7% 0 / 0 12% 12% 0;
-  transform: translate3d(-100vw, 0, 0);
-}
-.ng-curtain-right {
-  right: 0;
+.ng-door {
+  position: absolute;
+  top: 0;
+  bottom: 0;
   width: 50%;
-  border-radius: 7% 0 0 7% / 12% 0 0 12%;
-  transform: translate3d(100vw, 0, 0);
+  will-change: transform;
+  backface-visibility: hidden;
+  background:
+    linear-gradient(180deg, #16293f 0%, #0e1c2e 12%, #0b1728 50%, #0d1c2f 88%, #16293f 100%);
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.75);
 }
-
-/* reflet cyan : plus dense en allant vers le sombre, plus doux vers le clair */
-.ng-curtain[data-direction="to-dark"] .ng-curtain-left {
-  box-shadow: inset -26px 0 42px -34px rgba(0, 212, 255, 0.4), 0 26px 64px rgba(0, 0, 0, 0.6);
+.ng-door-left { left: 0; transform: translate3d(-101%, 0, 0); }
+.ng-door-right { right: 0; transform: translate3d(101%, 0, 0); }
+.ng-door-frame {
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid rgba(0, 200, 255, 0.55);
+  clip-path: polygon(0 0, 96% 0, 100% 4%, 100% 96%, 96% 100%, 0 100%);
+  box-shadow: inset 0 0 30px rgba(0, 168, 255, 0.16), 0 0 18px rgba(0, 212, 255, 0.22);
 }
-.ng-curtain[data-direction="to-dark"] .ng-curtain-right {
-  box-shadow: inset 26px 0 42px -34px rgba(0, 212, 255, 0.4), 0 26px 64px rgba(0, 0, 0, 0.6);
+.ng-door-right .ng-door-frame {
+  clip-path: polygon(4% 0, 100% 0, 100% 100%, 4% 100%, 0 96%, 0 4%);
 }
-.ng-curtain[data-direction="to-light"] .ng-curtain-left {
-  box-shadow: inset -26px 0 42px -34px rgba(0, 168, 255, 0.34), 0 26px 64px rgba(0, 0, 0, 0.4);
+.ng-door-metal {
+  position: absolute;
+  inset: 9px;
+  overflow: hidden;
+  clip-path: polygon(0 0, 96% 0, 100% 4%, 100% 96%, 96% 100%, 0 100%);
+  background:
+    linear-gradient(112deg, rgba(58, 108, 160, 0.32) 0%, transparent 26%, transparent 74%, rgba(58, 108, 160, 0.24) 100%),
+    linear-gradient(180deg, #13253a 0%, #0c1a2b 22%, #081422 55%, #0b1a2c 84%, #122439 100%);
 }
-.ng-curtain[data-direction="to-light"] .ng-curtain-right {
-  box-shadow: inset 26px 0 42px -34px rgba(0, 168, 255, 0.34), 0 26px 64px rgba(0, 0, 0, 0.4);
+.ng-door-right .ng-door-metal {
+  clip-path: polygon(4% 0, 100% 0, 100% 100%, 4% 100%, 0 96%, 0 4%);
 }
-
-/* liseré lumineux sur la couture intérieure */
-.ng-curtain-left::after {
+.ng-ridges {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 10px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.22) 0 1px, transparent 1px 84px);
+  opacity: 0.8;
+}
+.ng-plate {
+  position: absolute;
+  top: 11%;
+  bottom: 11%;
+  left: 8%;
+  right: 17%;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 168, 255, 0.3);
+  background:
+    linear-gradient(180deg, transparent 0 42%, rgba(0, 168, 255, 0.22) 42% 42.4%, transparent 42.4%),
+    linear-gradient(180deg, transparent 0 74%, rgba(0, 168, 255, 0.16) 74% 74.3%, transparent 74.3%),
+    linear-gradient(155deg, rgba(10, 26, 44, 0.95) 0%, rgba(5, 13, 24, 0.9) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(120, 200, 255, 0.18),
+    inset 0 0 0 5px rgba(3, 10, 20, 0.55),
+    inset 0 0 40px rgba(0, 120, 220, 0.16),
+    0 10px 24px rgba(0, 0, 0, 0.55);
+}
+.ng-door-right .ng-plate {
+  left: 17%;
+  right: 8%;
+}
+.ng-door-metal::after {
   content: "";
   position: absolute;
-  top: 0;
+  top: 5%;
+  bottom: 5%;
   right: 0;
-  width: 2px;
-  height: 100%;
-  background: linear-gradient(180deg, transparent, rgba(0, 212, 255, 0.85) 22%, rgba(127, 231, 255, 0.95) 50%, rgba(0, 212, 255, 0.85) 78%, transparent);
-  opacity: 0.9;
+  width: 34px;
+  background:
+    linear-gradient(90deg, rgba(3, 10, 20, 0.92) 0%, rgba(17, 40, 66, 0.95) 74%, rgba(0, 140, 210, 0.45) 96%, rgba(0, 140, 210, 0.05) 100%);
+  box-shadow: -16px 0 26px rgba(0, 0, 0, 0.55), 0 0 14px rgba(0, 212, 255, 0.25);
 }
-.ng-curtain-right::after {
+.ng-door-right .ng-door-metal::after {
+  right: auto;
+  left: 0;
+  background:
+    linear-gradient(270deg, rgba(3, 10, 20, 0.92) 0%, rgba(17, 40, 66, 0.95) 74%, rgba(0, 140, 210, 0.45) 96%, rgba(0, 140, 210, 0.05) 100%);
+}
+.ng-door-frame::after {
   content: "";
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  right: 12px;
+  width: 8px;
+  background: repeating-linear-gradient(180deg, rgba(0, 212, 255, 0.55) 0 2px, transparent 2px 14px);
+  opacity: 0.8;
+}
+.ng-door-right .ng-door-frame::after {
+  right: auto;
+  left: 12px;
+}
+.ng-chev {
+  position: absolute;
+  top: 50%;
+  left: 22%;
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+  color: #8fe9ff;
+  filter: drop-shadow(0 0 12px rgba(0, 212, 255, 0.8));
+}
+.ng-door-right .ng-chev {
+  left: auto;
+  right: 22%;
+  transform: scaleX(-1);
+}
+.ng-chev svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ng-beam {
   position: absolute;
   top: 0;
-  left: 0;
+  bottom: 0;
+  left: 50%;
   width: 2px;
-  height: 100%;
-  background: linear-gradient(180deg, transparent, rgba(0, 212, 255, 0.85) 22%, rgba(127, 231, 255, 0.95) 50%, rgba(0, 212, 255, 0.85) 78%, transparent);
-  opacity: 0.9;
+  margin-left: -1px;
+  background: linear-gradient(180deg, transparent, #00d4ff 12%, #d6fbff 50%, #00d4ff 88%, transparent);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.9), 0 0 60px rgba(0, 168, 255, 0.5);
+  transform: scaleY(0);
 }
-
-/* pli de tissu : ombre douce + reflet qui glisse sur la toile */
-.ng-curtain-panel::before {
-  content: "";
-  position: absolute;
-  top: -20%;
-  left: -70%;
-  width: 70%;
-  height: 140%;
-  pointer-events: none;
-  opacity: 0;
-  transform: skewX(-12deg);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09) 42%, rgba(0, 212, 255, 0.16) 55%, transparent);
-}
-.ng-curtain.is-closing .ng-curtain-panel::before,
-.ng-curtain.is-opening .ng-curtain-panel::before {
-  animation: ng-curtain-sheen 620ms cubic-bezier(0.4, 0.1, 0.3, 1) forwards;
-}
-.ng-curtain-right::before { animation-delay: 70ms; }
-
-.ng-curtain.is-closing .ng-curtain-left {
-  animation:
-    ng-curtain-close-left 340ms cubic-bezier(0.3, 0.9, 0.35, 1) forwards,
-    ng-curtain-ripple 900ms ease-in-out infinite alternate;
-}
-.ng-curtain.is-closing .ng-curtain-right {
-  animation:
-    ng-curtain-close-right 340ms cubic-bezier(0.3, 0.9, 0.35, 1) forwards,
-    ng-curtain-ripple 900ms ease-in-out infinite alternate-reverse;
-}
-.ng-curtain.is-opening .ng-curtain-left {
-  animation:
-    ng-curtain-open-left 700ms cubic-bezier(0.65, 0, 0.35, 1) forwards,
-    ng-curtain-ripple 760ms ease-in-out infinite alternate;
-}
-.ng-curtain.is-opening .ng-curtain-right {
-  animation:
-    ng-curtain-open-right 700ms cubic-bezier(0.65, 0, 0.35, 1) forwards,
-    ng-curtain-ripple 760ms ease-in-out infinite alternate-reverse;
-}
-
-@keyframes ng-curtain-close-left {
-  from { transform: translate3d(-100vw, 0, 0) rotate(-1.6deg); }
-  to { transform: translate3d(0, 0, 0) rotate(0deg); }
-}
-@keyframes ng-curtain-close-right {
-  from { transform: translate3d(100vw, 0, 0) rotate(1.6deg); }
-  to { transform: translate3d(0, 0, 0) rotate(0deg); }
-}
-@keyframes ng-curtain-open-left {
-  from { transform: translate3d(0, 0, 0) rotate(0deg); }
-  to { transform: translate3d(-101vw, 0, 0) rotate(-1.8deg); }
-}
-@keyframes ng-curtain-open-right {
-  from { transform: translate3d(0, 0, 0) rotate(0deg); }
-  to { transform: translate3d(101vw, 0, 0) rotate(1.8deg); }
-}
-
-/* ondulation : les coutures du tissu dérivent doucement */
-@keyframes ng-curtain-ripple {
-  from { background-position: 0 0, 0 0; }
-  to { background-position: 18px 0, 0 0; }
-}
-
-@keyframes ng-curtain-sheen {
-  0% { opacity: 0; left: -70%; }
-  18% { opacity: 0.95; }
-  100% { opacity: 0; left: 105%; }
-}
-
-/* éclat bref à la rencontre des deux liserés */
-.ng-curtain-burst {
+.ng-emblem {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 460px;
-  height: 460px;
-  margin: -230px 0 0 -230px;
+  width: 160px;
+  height: 160px;
+  margin: -80px 0 0 -80px;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: scale(0.86);
+}
+.ng-emblem-ship {
+  display: grid;
+  place-items: center;
+  width: 108px;
+  height: 108px;
+  color: #a8f0ff;
+  filter: drop-shadow(0 0 18px rgba(0, 212, 255, 0.9));
+}
+.ng-emblem-ship svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ng-emblem-glow {
+  position: absolute;
+  inset: -40%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 190, 255, 0.4) 0%, transparent 66%);
+}
+.ng-flash {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 700px;
+  height: 700px;
+  margin: -350px 0 0 -350px;
   border-radius: 50%;
   opacity: 0;
-  pointer-events: none;
-  background: radial-gradient(circle, rgba(190, 246, 255, 0.8) 0%, rgba(0, 212, 255, 0.4) 26%, rgba(0, 168, 255, 0.1) 52%, transparent 70%);
+  background: radial-gradient(circle, rgba(205, 250, 255, 0.92) 0%, rgba(0, 212, 255, 0.42) 22%, rgba(0, 168, 255, 0.1) 46%, transparent 66%);
   mix-blend-mode: screen;
 }
-.ng-curtain.is-burst .ng-curtain-burst {
-  animation: ng-curtain-burst 460ms ease-out forwards;
-}
-
-@keyframes ng-curtain-burst {
-  0% { opacity: 0; transform: scale(0.3); }
-  20% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(1.45); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ng-curtain { display: none !important; }
+.ng-portal.is-closing .ng-door-left { animation: ng-door-close-left 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.ng-portal.is-closing .ng-door-right { animation: ng-door-close-right 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.ng-portal.is-closing .ng-beam { animation: ng-beam-in 300ms 40ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.ng-portal.is-closing .ng-emblem { animation: ng-emblem-in 300ms 110ms ease-out forwards; }
+.ng-portal.is-opening .ng-door-left { animation: ng-door-open-left 680ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.ng-portal.is-opening .ng-door-right { animation: ng-door-open-right 680ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.ng-portal.is-opening .ng-emblem { animation: ng-emblem-out 240ms ease-in forwards; }
+.ng-portal.is-opening .ng-beam { animation: ng-beam-out 380ms ease-out forwards; }
+.ng-portal.is-flash .ng-flash { animation: ng-flash 300ms ease-out forwards; }
+.ng-portal.is-opening .ng-core { animation: ng-core-out 160ms ease-out forwards; }
+@keyframes ng-door-close-left { from { transform: translate3d(-101%, 0, 0); } to { transform: translate3d(0, 0, 0); } }
+@keyframes ng-door-close-right { from { transform: translate3d(101%, 0, 0); } to { transform: translate3d(0, 0, 0); } }
+@keyframes ng-door-open-left { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-101%, 0, 0); } }
+@keyframes ng-door-open-right { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(101%, 0, 0); } }
+@keyframes ng-beam-in { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes ng-beam-out { from { transform: scaleY(1); } to { transform: scaleY(0); } }
+@keyframes ng-emblem-in { from { opacity: 0; transform: scale(0.86); } to { opacity: 1; transform: scale(1); } }
+@keyframes ng-emblem-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(1.12); } }
+@keyframes ng-flash { 0% { opacity: 0; transform: scale(0.35); } 28% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
+@keyframes ng-core-out { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .ng-portal { display: none !important; } }
+@media (max-width: 640px) {
+  .ng-emblem { width: 120px; height: 120px; margin: -60px 0 0 -60px; }
+  .ng-emblem-ship { width: 78px; height: 78px; }
+  .ng-chev { width: 32px; height: 32px; margin-top: -16px; }
 }
