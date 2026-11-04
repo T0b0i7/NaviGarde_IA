@@ -1,38 +1,57 @@
-# NaviGarde IA — matrice fonctionnelle auditée
+# NaviGarde IA — matrice fonctionnelle
 
-Audit réalisé sur le code présent dans le checkpoint précédent. Une ligne est considérée comme terminée uniquement si l’interface, l’API, la persistance et la vérification sont toutes présentes.
+État vérifié le **04/11/2026** par exécution : `pnpm check`, `pnpm lint`
+(0 erreur), `pnpm test` (52 tests), `pnpm build`, `pnpm verify:db`
+(20 tables, 14 FK, 9 migrations), `/api/health` et `/api/metrics` sur
+serveur réel.
 
-| Module | Interface | Backend | Persistant | Testé | État réel |
+Une ligne n'est marquée **Terminé** que si l'interface, l'API, la persistance
+et la vérification sont toutes présentes.
+
+| Module | Interface | Backend | Persistant | Vérification | État |
 |---|---|---|---|---|---|
-| Dashboard | Oui, responsive, graphiques et filtres | Oui, `data.dashboard.metrics` | Oui pour KPI, activité, risques, alertes et inspections | TypeScript/build, pas encore navigateur complet | Partiel : plusieurs graphiques secondaires gardent des valeurs de démonstration |
-| Inspections | Création, détail, photos, revue humaine | Oui : création, transition, upload, analyse sauvegardée | Oui : inspections, images, findings, historique | Tests généraux, pas parcours complet | Partiel : le parcours IA réel doit être exécuté avec `BASETEN_API_KEY` |
-| Analyse IA | UI de résultat et actions de revue | Oui, Baseten côté serveur | Oui : score, confiance, findings, fournisseur | Appel image réel Baseten réussi le 02/11/2026 avec le modèle `meta-models/muse-spark-open-1026`; parcours métier complet encore à exécuter | Intégration externe confirmée, parcours complet restant |
-| Alertes | Écran présent, recherche et actions historiques | Oui, CRUD, historique et création automatique | Oui | Tests API généraux, pas parcours complet | Partiel : `AlertsPage` conserve encore des données locales |
-| Rapports | Centre et détail présents | Oui, PDF, versions, validation, SHA-256 | Oui | Build et tests généraux | Partiel : l’ancien écran Operations conserve des lignes locales |
-| Embarcations | Centres et détail présents | Oui, CRUD et champs techniques | Oui | Build et tests généraux | Partiel : l’ancien écran Operations conserve un seed local |
-| Bulletins | Création, consultation, publication, archivage | Oui, CRUD tRPC | Oui, `maritime_bulletins` | TypeScript/build | Fonctionnel côté module principal, pièces jointes à finaliser côté UI |
-| Utilisateurs | Liste, création, rôles, statut | Oui, mutations admin | Oui | Tests auth, pas parcours RBAC navigateur | Fonctionnel côté serveur |
-| Notifications | Shell, lecture individuelle/globale | Oui | Oui, `notifications` | Build | Fonctionnel, notification e-mail non configurée |
-| Audit | Consultation superviseur/admin | Oui, lecture protégée et événements clés | Oui, `audit_events` | Build | Partiel : toutes les mutations métier ne journalisent pas encore uniformément |
-| Paramètres | Écran clair/sombre, seuils et préférences | Oui, sauvegarde admin | Oui, `app_settings` | Build | Fonctionnel côté serveur, initialisation UI à améliorer après chargement |
+| Dashboard | Oui, responsive, graphes, filtres de période | `data.dashboard.metrics` | Oui : KPI, activité, risques, alertes, inspections | Tests d'intégration + serveur réel | Fonctionnel ; graphiques secondaires encore agrégés côté client |
+| Inspections | Création, détail, photos, revue humaine | Création, transition, upload, analyse sauvegardée | Oui : inspections, images, findings, historique | **`businessChain.test.ts` étapes 1–5** | Fonctionnel de bout en bout |
+| Analyse IA | Résultat et actions de revue | Baseten côté serveur | Oui : score, confiance, findings, fournisseur | Parcours d'analyse simulé en test ; appel réel à exécuter avec `BASETEN_API_KEY` | Intégration prête, parcours externe à valider |
+| Alertes | Écran, recherche, actions | CRUD, historique, création auto, alerte marin publique | Oui | Test d'intégration + plafond 6ᵉ alerte publique → 429 | Fonctionnel |
+| Rapports | Centre, détail, PDF | Génération, versions, validation, SHA-256 | Oui | **`businessChain.test.ts` étapes 6–9** | Fonctionnel ; `pdfStorageKey` n'est plus exposé |
+| Embarcations | Centre et détail | CRUD, champs techniques | Oui | Test d'intégration + FK | Fonctionnel |
+| Bulletins | Création, consultation, publication, archivage | CRUD tRPC | Oui, `maritime_bulletins` | Test d'intégration | Fonctionnel ; pièces jointes côté UI à finaliser |
+| Utilisateurs | Liste, création, rôles, statut | Mutations admin | Oui | Tests RBAC + auth | Fonctionnel |
+| Notifications | Shell, lecture unitaire/globale | Lecture, marquage | Oui | Build + rafraîchissement 30 s | Fonctionnel ; e-mail non configuré |
+| Audit | Consultation superviseur/admin | Lecture protégée, écriture à 33 points | Oui, `audit_events` | `businessChain` vérifie `report.validate` | Fonctionnel |
+| Paramètres | Écran thème, seuils, préférences | Lecture, sauvegarde admin | Oui, `app_settings` | Build | Fonctionnel côté serveur |
+| Supervision prédictive | Absent de la navigation | `predictive.*` : score, zones, météo, positions | Oui | Logique de seuils testée | API présente, **pas d'interface** |
 
-## Données statiques identifiées
+## Données statiques restantes
 
-- `Home.tsx` contient encore `demoProblems`, `demoAgentPerformance` et `demoDelays` sans agrégations MySQL correspondantes.
-- `Home.tsx` utilise des fallbacks `demoActivity`, `demoRisks`, `demoInspections` et `demoAlerts` lorsque l’API est vide ou indisponible. Ces fallbacks doivent être remplacés par des états vides ou erreur.
-- `Operations.tsx` conserve `initialAlerts`, `initialReports`, `initialVessels` et `initialAudit` pour des écrans historiques.
-- `InspectionDetail.tsx` conserve des valeurs visuelles statiques pour l’illustration de certaines informations et photos.
+- `Operations.tsx` conserve des tableaux de démonstration pour les écrans
+  historiques Rapports et Embarcations (les centres `ReportsCenter` et
+  `VesselsCenter` sont, eux, branchés sur tRPC).
+- `InspectionDetail.tsx` conserve une illustration statique pour certaines
+  photos.
+- Les classes CSS `mock-*` sont des noms hérités de la maquette : ce ne sont
+  pas des données fictives.
 
-## Variables externes
+## Cœur d'exploitation (ajouté le 04/11)
 
-- `DATABASE_URL` : nécessaire à la persistance MySQL.
-- `BASETEN_API_KEY` : nécessaire à l’analyse réelle Muse Spark Open 1026.
-- Variables Manus OAuth/session/storage : fournies par l’environnement de déploiement.
+| Domaine | Avant | Maintenant |
+|---|---|---|
+| Accès base | `root` sans mot de passe | `navigarde_app` sans droits DDL, refus de root au démarrage |
+| Migrations | même compte que l'application | `navigarde_migrator` dédié |
+| Secrets | `.env` non validé, JWT de 23 caractères | validation au démarrage, secret de 64 caractères, `verify:env` |
+| CI | aucune | GitHub Actions : tsc + lint + tests + build + intégration MySQL |
+| Tests métier | 0 sur la chaîne produit | 9 étapes de bout en bout (inspection → rapport validé) |
+| Limitation de connexion | IP+e-mail seulement (contournable en changeant d'IP) | double portée IP+e-mail **et** e-mail |
+| Healthcheck | `{"status":"ok"}` constant | `SELECT 1` réel, 503 si base coupée |
+| Erreurs 500 | invisibles | journalisées avec `X-Request-Id` |
+| `pdfStorageKey` | exposé par l'API | filtré pour toutes les réponses |
+| Intégrité | aucune FK | 14 contraintes en base |
 
-## Priorités de correction
+## Priorités restantes
 
-1. Supprimer les fallbacks silencieux du dashboard et afficher des états vides/erreur explicites.
-2. Remplacer les écrans Operations Alertes/Rapports/Embarcations par les hooks tRPC déjà disponibles.
-3. Ajouter les agrégations backend des graphiques secondaires.
-4. Compléter l’audit automatique sur toutes les mutations sensibles.
-5. Exécuter les parcours navigateur avec les quatre rôles et une clé Baseten configurée.
+1. Stockage durable (S3/volume) — photos et PDF perdus au redéploiement.
+2. Limitation de débit partagée (Redis) si plusieurs instances.
+3. Protection CSRF hors iframe d'aperçu.
+4. Parcours navigateur automatisé avec les quatre rôles.
+5. Brancher `predictive.*` dans l'interface.
