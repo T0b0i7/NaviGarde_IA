@@ -4,9 +4,13 @@ import reactPlugin from "eslint-plugin-react";
 import reactHooksPlugin from "eslint-plugin-react-hooks";
 
 export default [
+  // `ignores` doit être déclaré au niveau racine pour que les fichiers soient
+  // réellement exclus du lint (et non seulement filtrés des règles).
+  {
+    ignores: ["dist/**", "node_modules/**", "**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "public/**", "client/public/**"],
+  },
   {
     files: ["**/*.{ts,tsx}"],
-    ignores: ["dist/**", "node_modules/**", "**/*.test.ts", "**/*.test.tsx"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {

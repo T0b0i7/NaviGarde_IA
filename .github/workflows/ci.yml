@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+# Une seule exécution par branche : une poussée rapide annule la précédente.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Vérifications sans base de données : rapides, elles bloquent tôt.
+  # ---------------------------------------------------------------------------
+  static:
+    name: Types, lint, tests unitaires, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Vérification des types
+        run: pnpm check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Tests unitaires
+        # Sans DATABASE_URL : les suites d'intégration s'ignorent d'elles-mêmes
+        # et seules les assertions pures (validation, sérialisation, hash,
+        # PDF, logique de risque) s'exécutent.
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  # ---------------------------------------------------------------------------
+  # 2. Tests d'intégration sur une vraie base MySQL.
+  #    Le service de CI tourne avec le compte applicatif navigarde_app, jamais
+  #    root : les tests doivent prouver les mêmes droits que la production.
+  # ---------------------------------------------------------------------------
+  integration:
+    name: Intégration (MySQL + compte applicatif)
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root-ci-only
+          MYSQL_DATABASE: navigarde
+          MYSQL_USER: navigarde_app
+          MYSQL_PASSWORD: ci-app-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-ci-only"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      NODE_ENV: test
+      DATABASE_URL: mysql://navigarde_app:ci-app-password@127.0.0.1:3306/navigarde
+      # Compte administrateur : uniquement pour appliquer les migrations.
+      MIGRATION_DATABASE_URL: mysql://root:root-ci-only@127.0.0.1:3306/navigarde
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Appliquer les migrations
+        run: pnpm db:migrate
+        env:
+          DATABASE_URL: ${{ env.MIGRATION_DATABASE_URL }}
+
+      - name: Créer les comptes de test par rôle
+        run: pnpm exec tsx scripts/create-role-accounts.ts
+        env:
+          DATABASE_URL: ${{ env.MIGRATION_DATABASE_URL }}
+
+      - name: Refuser le compte root pour les tests
+        # Garde-fou : un test qui tournerait en root validerait des droits que
+        # la production n'accorde pas.
+        run: |
+          case "$DATABASE_URL" in
+            *"//root"*) echo "DATABASE_URL pointe sur root, refusé."; exit 1 ;;
+          esac
+          echo "Compte applicatif confirmé."
+
+      - name: Tests d'intégration
+        run: pnpm test

@@ -167,8 +167,6 @@ export function textWidth(text: string, size: number, bold = false) {
 
 
 function wrapText(text: string, size: number, width: number, bold = false): string[] {
-  const charW = size * (bold ? 0.54 : 0.5);
-  const max = Math.max(8, Math.floor(width / charW));
   const out: string[] = [];
   for (const paragraph of toWinAnsi(text).split(/\r?\n/)) {
     const words = paragraph.split(/\s+/).filter(Boolean);
