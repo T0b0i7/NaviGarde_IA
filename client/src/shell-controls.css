@@ -426,22 +426,37 @@ html.dark .btn-outline-blue.danger:hover { background: rgba(255,51,79,0.12); bor
   opacity: 0;
   transform: scale(0.86);
 }
-.ng-emblem-ship {
+.ng-emblem-disc {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 108px;
-  height: 108px;
-  color: #a8f0ff;
-  filter: drop-shadow(0 0 18px rgba(0, 212, 255, 0.9));
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #f4feff;
+  box-shadow:
+    0 0 0 2px rgba(120, 235, 255, 0.95),
+    0 0 22px rgba(0, 212, 255, 0.85),
+    0 0 70px rgba(0, 168, 255, 0.55);
 }
-.ng-emblem-ship svg {
-  width: 100%;
-  height: 100%;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.ng-emblem-disc img {
+  width: 134%;
+  height: 134%;
+  object-fit: contain;
+  filter: saturate(1.15) contrast(1.05);
+}
+.ng-emblem-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 182px;
+  height: 182px;
+  margin: -91px 0 0 -91px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 212, 255, 0.55);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.45), inset 0 0 20px rgba(0, 212, 255, 0.28);
+  animation: ng-ring-pulse 1.8s ease-in-out infinite;
 }
 .ng-emblem-glow {
   position: absolute;
@@ -480,10 +495,12 @@ html.dark .btn-outline-blue.danger:hover { background: rgba(255,51,79,0.12); bor
 @keyframes ng-emblem-in { from { opacity: 0; transform: scale(0.86); } to { opacity: 1; transform: scale(1); } }
 @keyframes ng-emblem-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(1.12); } }
 @keyframes ng-flash { 0% { opacity: 0; transform: scale(0.35); } 28% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
+@keyframes ng-ring-pulse { 0%, 100% { opacity: 0.45; transform: scale(0.96); } 50% { opacity: 0.95; transform: scale(1.04); } }
 @keyframes ng-core-out { from { opacity: 1; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .ng-portal { display: none !important; } }
 @media (max-width: 640px) {
   .ng-emblem { width: 120px; height: 120px; margin: -60px 0 0 -60px; }
-  .ng-emblem-ship { width: 78px; height: 78px; }
+  .ng-emblem-disc { width: 96px; height: 96px; }
+  .ng-emblem-ring { width: 118px; height: 118px; margin: -59px 0 0 -59px; }
   .ng-chev { width: 32px; height: 32px; margin-top: -16px; }
 }

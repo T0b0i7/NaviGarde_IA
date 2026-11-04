@@ -39,12 +39,10 @@ export function buildPortal(direction: "to-dark" | "to-light"): Portal {
 
   const emblem = document.createElement("div");
   emblem.className = "ng-emblem";
-  const SHIP =
-    '<svg viewBox="0 0 64 64" aria-hidden="true">' +
-    '<path d="M32 6v18" /><path d="M32 10c9 5 13 12 13 20H32z" /><path d="M32 12c-8 5-12 11-12 18h12z" />' +
-    '<path d="M14 34h36l-6 12H20z" /><path d="M20 50c4 3 8 4 12 4s8-1 12-4" />' +
-    "</svg>";
-  emblem.innerHTML = '<span class="ng-emblem-ship">' + SHIP + "</span><span class=\"ng-emblem-glow\"></span>";
+    emblem.innerHTML =
+    '<span class="ng-emblem-disc"><img src="/logo-icon.png" alt="NaviGarde IA" /></span>' +
+    '<span class="ng-emblem-glow"></span>' +
+    '<span class="ng-emblem-ring"></span>';
 
   const flash = document.createElement("div");
   flash.className = "ng-flash";
