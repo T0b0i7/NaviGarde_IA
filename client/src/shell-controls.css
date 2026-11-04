@@ -267,3 +267,66 @@ html.dark .audit-json { background: #04101f; color: var(--text-secondary); }
 html.dark .btn-outline-blue.danger { color: #ff8fa0; border-color: rgba(255,51,79,0.45); }
 html.dark .btn-outline-blue.danger:hover { background: rgba(255,51,79,0.12); border-color: #FF334F; }
 
+
+/* ===== Transition de thÃ¨me : voile qui s'ouvre ===== */
+.ng-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  overflow: hidden;
+  contain: strict;
+}
+.ng-curtain-panel {
+  position: absolute;
+  top: -4%;
+  height: 108%;
+  width: 64%;
+  will-change: transform;
+  backface-visibility: hidden;
+  isolation: isolate;
+  background:
+    repeating-linear-gradient(96deg, rgba(255,255,255,0.045) 0 2px, transparent 2px 26px),
+    linear-gradient(115deg, #0E2A4C 0%, #0A1B35 45%, #06152B 100%);
+  box-shadow: 0 0 60px rgba(0,0,0,0.55);
+}
+.ng-curtain-left {
+  left: 0;
+  border-radius: 0 18% 18% 0 / 0 26% 26% 0;
+  transform: translate3d(-104%, 0, 0);
+}
+.ng-curtain-right {
+  right: 0;
+  border-radius: 18% 0 0 18% / 26% 0 0 26%;
+  transform: translate3d(104%, 0, 0);
+}
+/* palette du voile = thÃ¨me quittÃ© pendant la fermeture, thÃ¨me adoptÃ© Ã  l'ouverture */
+.ng-curtain-left { box-shadow: inset -30px 0 38px -24px rgba(0, 212, 255, 0.9), 0 0 60px rgba(0, 0, 0, 0.5); }
+.ng-curtain-right { box-shadow: inset 30px 0 38px -24px rgba(0, 212, 255, 0.9), 0 0 60px rgba(0, 0, 0, 0.5); }
+.ng-curtain-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 55%, rgba(0,212,255,0.10) 100%);
+}
+.ng-curtain.is-closing .ng-curtain-left { animation: ng-curtain-close-left 300ms cubic-bezier(0.62, 0.02, 0.3, 1) forwards; }
+.ng-curtain.is-closing .ng-curtain-right { animation: ng-curtain-close-right 300ms cubic-bezier(0.62, 0.02, 0.3, 1) forwards; }
+.ng-curtain.is-opening .ng-curtain-left { animation: ng-curtain-open-left 680ms cubic-bezier(0.22, 0.72, 0.24, 1) forwards; }
+.ng-curtain.is-opening .ng-curtain-right { animation: ng-curtain-open-right 680ms cubic-bezier(0.22, 0.72, 0.24, 1) forwards; }
+
+@keyframes ng-curtain-close-left {
+  from { transform: translate3d(-104%, 0, 0) rotate(-1.5deg); }
+  to { transform: translate3d(0, 0, 0) rotate(0deg); }
+}
+@keyframes ng-curtain-close-right {
+  from { transform: translate3d(104%, 0, 0) rotate(1.5deg); }
+  to { transform: translate3d(0, 0, 0) rotate(0deg); }
+}
+@keyframes ng-curtain-open-left {
+  from { transform: translate3d(0, 0, 0) rotate(0deg); }
+  to { transform: translate3d(-106%, 0, 0) rotate(-1.8deg); }
+}
+@keyframes ng-curtain-open-right {
+  from { transform: translate3d(0, 0, 0) rotate(0deg); }
+  to { transform: translate3d(106%, 0, 0) rotate(1.8deg); }
+}

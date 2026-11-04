@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { playThemeCurtain } from "./themeCurtain";
 
 export type ThemeMode = "light" | "dark" | "auto";
 type Resolved = "light" | "dark";
@@ -51,8 +52,21 @@ export function ThemeProvider({ children, defaultTheme = "light", switchable = f
     return () => window.clearTimeout(t);
   }, [theme, mode, switchable]);
 
-  const setMode = (m: ThemeMode) => switchable && setModeState(m);
-  const toggleTheme = switchable ? () => setModeState((p) => (p === "dark" ? "light" : "dark")) : undefined;
+  const setMode = (m: ThemeMode) => {
+    if (!switchable) return;
+    const next = m === "auto" ? systemTheme() : m;
+    if (next === theme) {
+      setModeState(m);
+      return;
+    }
+    void playThemeCurtain(theme, () => setModeState(m));
+  };
+  const toggleTheme = switchable
+    ? () => {
+        const next: ThemeMode = theme === "dark" ? "light" : "dark";
+        void playThemeCurtain(theme, () => setModeState(next));
+      }
+    : undefined;
 
   const value = useMemo(() => ({ mode, theme, setMode, toggleTheme, switchable }), [mode, theme, switchable]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
