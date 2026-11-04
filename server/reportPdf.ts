@@ -1,6 +1,6 @@
 import { getInspection, getReport, getVessel, listInspectionFindings, listInspectionImages } from "./db";
 import { buildInspectionPdf, type PdfImageInput } from "./pdf";
-import { storageRead } from "./storage";
+import { storageReadBytes } from "./storage";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -28,7 +28,7 @@ export async function renderReportPdf(reportId: number): Promise<Buffer> {
   const photoInputs: Array<PdfImageInput | null> = await Promise.all(
     images.slice(0, 8).map(async (img, index) => {
       const key = img.storageKey ?? String(img.imageUrl ?? "").replace(/^\/uploads\//, "");
-      const data = key ? await storageRead(key) : null;
+      const data = key ? await storageReadBytes(key) : null;
       return data ? { data, caption: `Photo ${index + 1} - ${img.imageType ?? "inspection"}` } : null;
     }),
   );
