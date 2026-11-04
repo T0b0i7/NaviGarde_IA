@@ -23,17 +23,17 @@ import { useEffect, useState } from "react";
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const [location, navigate] = useLocation();
-  const meQuery = trpc.auth.me.useQuery(undefined, { retry: false, refetchOnWindowFocus: false });
+  const meQuery = trpc.auth.me.useQuery(undefined, { retry: false, refetchOnWindowFocus: false, staleTime: 0, refetchOnMount: "always" });
   const [checking, setChecking] = useState(true);
   const publicRoute = location === "/connexion" || location === "/marin/alerte";
   useEffect(() => {
     if (publicRoute || location === "/forbidden") { setChecking(false); return; }
-    if (meQuery.isLoading) return;
+    if (meQuery.isLoading || meQuery.isFetching) return;
     const role = roleLabel(meQuery.data?.appRole);
     if (!meQuery.data || !role) { navigate("/connexion"); return; }
     if (!canAccess(role, location)) { navigate("/forbidden"); return; }
     setChecking(false);
-  }, [location, navigate, publicRoute, meQuery.data, meQuery.isLoading]);
+  }, [location, navigate, publicRoute, meQuery.data, meQuery.isLoading, meQuery.isFetching]);
   if (checking && !publicRoute && location !== "/forbidden") return null;
   return <>{children}</>;
 }

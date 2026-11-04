@@ -10,6 +10,7 @@ import "./login.css";
 export default function Login() {
   const { t } = useLang();
   const [, navigate] = useLocation();
+  const utils = trpc.useUtils();
   const [email, setEmail] = useState(() => { try { return localStorage.getItem("navigarde_remember_email") ?? ""; } catch { return ""; } });
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -20,10 +21,13 @@ export default function Login() {
   const [newPassword, setNewPassword] = useState("");
 
   const login = trpc.localAuth.login.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       try {
         if (rememberMe) localStorage.setItem("navigarde_remember_email", email.trim().toLowerCase());
         else localStorage.removeItem("navigarde_remember_email");
+      } catch {}
+      try {
+        await utils.auth.me.refetch();
       } catch {}
       navigate("/", { replace: true });
     },
