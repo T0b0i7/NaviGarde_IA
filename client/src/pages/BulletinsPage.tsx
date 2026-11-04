@@ -7,6 +7,8 @@ import AppShell from "@/components/AppShell";
 import { trpc } from "@/lib/trpc";
 import { useLang } from "@/i18n/LanguageContext";
 import { ChartSkeleton, EmptyState, ErrorState, KpiSkeleton, TableSkeleton } from "@/components/DashboardStates";
+import { ArchiveButton } from "@/components/ArchiveButton";
+import { ScopeSwitch, type ArchiveScope } from "@/components/ScopeSwitch";
 
 type Imp = "information" | "important" | "urgent" | "critique";
 const ALL = "__ALL__";
@@ -18,9 +20,12 @@ export function BulletinsPage() {
   const utils = trpc.useUtils();
   const me = trpc.auth.me.useQuery(undefined, { retry: false });
   const isObserver = me.data?.appRole === "observer";
-  const q = trpc.data.bulletins.list.useQuery(undefined, { refetchOnWindowFocus: false });
+  const [scope, setScope] = useState<ArchiveScope>("active");
+  const q = trpc.data.bulletins.list.useQuery({ scope }, { refetchOnWindowFocus: false });
   const create = trpc.data.bulletins.create.useMutation({ onSuccess: () => { utils.data.bulletins.list.invalidate(); setShowCreate(false); toast.success(t("bu.saved")); }, onError: (e) => toast.error(e.message) });
   const update = trpc.data.bulletins.update.useMutation({ onSuccess: () => { utils.data.bulletins.list.invalidate(); toast.success(t("bu.updated")); }, onError: (e) => toast.error(e.message) });
+  const archiveMut = trpc.data.bulletins.archive.useMutation({ onSuccess: () => { utils.data.bulletins.list.invalidate(); toast.success(t("c.archive")); }, onError: (e) => toast.error(e.message) });
+  const restoreMut = trpc.data.bulletins.restore.useMutation({ onSuccess: () => { utils.data.bulletins.list.invalidate(); toast.success(t("c.restore")); }, onError: (e) => toast.error(e.message) });
   const impLabel = (i: Imp) => i === "information" ? t("lvl.info") : i === "important" ? t("lvl.warning") : t("lvl.alert");
   const lvlLabel = (i: Imp) => i === "information" ? t("risk.low") : i === "important" ? t("risk.medium") : t("risk.high");
 
@@ -105,6 +110,7 @@ export function BulletinsPage() {
             <select value={typeF} onChange={(e) => { setTypeF(e.target.value); setPage(1); }} style={{ height: 42, border: "1.5px solid #d9e6f2", borderRadius: 10, fontSize: 12.5, padding: "0 10px", background: "#fff" }}><option value={ALL}>{t("bu.allTypes")}</option>{types.map((x) => <option key={x} value={x}>{x}</option>)}</select>
             <select value={zoneF} onChange={(e) => { setZoneF(e.target.value); setPage(1); }} style={{ height: 42, border: "1.5px solid #d9e6f2", borderRadius: 10, fontSize: 12.5, padding: "0 10px", background: "#fff" }}><option value={ALL}>{t("bu.allZones")}</option>{zones.map((z) => <option key={z} value={z}>{z}</option>)}</select>
             <select value={lvlF} onChange={(e) => { setLvlF(e.target.value); setPage(1); }} style={{ height: 42, border: "1.5px solid #d9e6f2", borderRadius: 10, fontSize: 12.5, padding: "0 10px", background: "#fff" }}><option value={ALL}>{t("bu.allLevels")}</option><option value="information">{t("risk.low")}</option><option value="important">{t("risk.medium")}</option><option value="urgent">{t("risk.high")}</option><option value="critique">{t("risk.critical")}</option></select>
+            <ScopeSwitch value={scope} onChange={(v) => { setScope(v); setPage(1); setSelectedId(null); }} />
           </div>
 
           <div className="mock-card">
@@ -122,7 +128,7 @@ export function BulletinsPage() {
                     <td><span className={`bdg ${lvlBadge(b.importance)}`}>{b.importance === "information" ? <Check size={11} /> : <TriangleAlert size={11} />}{lvlLabel(b.importance)}</span></td>
                     <td style={{ fontSize: 11.5 }}>{new Date(b.createdAt).toLocaleDateString(locale)}<br />{new Date(b.createdAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</td>
                     <td>{b.status === "publie" ? <span className="bdg bdg-green"><Check size={11} /> {t("bu.published")}</span> : b.status === "archive" ? <span className="bdg bdg-gray"><Archive size={11} /> {t("bu.archived")}</span> : <span className="bdg bdg-yellow"><Clock size={11} /> {t("bu.draft")}</span>}</td>
-                    <td><div className="mock-actions"><button className="icon-sq" onClick={(e) => { e.stopPropagation(); setSelectedId(b.id); }}><Eye size={14} /></button>{!isObserver && <button className="icon-sq" onClick={(e) => { e.stopPropagation(); update.mutate({ id: b.id, patch: { status: b.status === "publie" ? "archive" : "publie" } }); }}><MoreVertical size={14} /></button>}</div></td>
+                    <td><div className="mock-actions"><button className="icon-sq" onClick={(e) => { e.stopPropagation(); setSelectedId(b.id); }}><Eye size={14} /></button>{!isObserver && <button className="icon-sq" onClick={(e) => { e.stopPropagation(); update.mutate({ id: b.id, patch: { status: b.status === "publie" ? "archive" : "publie" } }); }}><MoreVertical size={14} /></button>}{!isObserver && <ArchiveButton archived={scope === "archived"} label={b.title} onConfirm={() => (scope === "archived" ? restoreMut.mutateAsync({ id: b.id }) : archiveMut.mutateAsync({ id: b.id }))} />}</div></td>
                   </tr>
                 ))}
               </tbody></table>)}

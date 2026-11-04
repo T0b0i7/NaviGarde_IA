@@ -216,3 +216,20 @@ html.dark .skel::after { background: linear-gradient(100deg, transparent 20%, rg
   .app-shell .sidebar { top: 12px; left: 12px; bottom: 12px; }
   .search-bar { display: none; }
 }
+html.dark .scope-switch { background: var(--bg-secondary); border-color: var(--border-primary); }
+html.dark .scope-switch button { color: var(--text-secondary-2); }
+html.dark .scope-switch button.on { background: var(--bg-card); color: var(--text-primary); }
+html.dark .scope-switch button span { background: rgba(8,123,255,0.18); color: var(--color-primary); }
+html.dark .ng-modal { background: var(--bg-card); }
+html.dark .ng-modal h3 { color: var(--text-primary); }
+html.dark .ng-modal p { color: var(--text-secondary-2); }
+html.dark .ng-modal p strong { color: var(--text-primary); }
+html.dark .ng-modal-ic { background: var(--bg-secondary); }
+html.dark .ng-modal-ghost { background: var(--bg-secondary); border-color: var(--border-primary); color: var(--text-secondary); }
+html.dark .audit-row { border-bottom-color: var(--border-primary); }
+html.dark .audit-row:hover { background: var(--bg-secondary); }
+html.dark .audit-ic { background: rgba(8,123,255,0.16); color: var(--color-primary); }
+html.dark .audit-kv { border-bottom-color: var(--border-primary); }
+html.dark .audit-kv span { color: var(--text-secondary-2); }
+html.dark .audit-kv strong { color: var(--text-primary); }
+html.dark .audit-json { background: #04101f; color: var(--text-secondary); }

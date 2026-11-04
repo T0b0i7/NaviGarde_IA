@@ -7,6 +7,8 @@ import AppShell from "@/components/AppShell";
 import { trpc } from "@/lib/trpc";
 import { useLang } from "@/i18n/LanguageContext";
 import { ChartSkeleton, EmptyState, ErrorState, KpiSkeleton, TableSkeleton } from "@/components/DashboardStates";
+import { ArchiveButton } from "@/components/ArchiveButton";
+import { ScopeSwitch, type ArchiveScope } from "@/components/ScopeSwitch";
 
 const ALL = "__ALL__";
 function riskCode(score: number) { if (score >= 75) return "high"; if (score >= 40) return "med"; return "low"; }
@@ -19,9 +21,12 @@ export default function VesselsCenter() {
   const me = trpc.auth.me.useQuery(undefined, { retry: false });
   const isObserver = me.data?.appRole === "observer";
   const canEdit = !isObserver;
-  const q = trpc.data.vessels.list.useQuery(undefined, { refetchOnWindowFocus: false });
+  const [scope, setScope] = useState<ArchiveScope>("active");
+  const q = trpc.data.vessels.list.useQuery({ limit: 500, offset: 0, scope }, { refetchOnWindowFocus: false });
   const inspQ = trpc.data.inspections.list.useQuery({ limit: 500, offset: 0 }, { refetchOnWindowFocus: false });
   const createMut = trpc.data.vessels.create.useMutation({ onSuccess: () => { utils.data.vessels.list.invalidate(); toast.success(t("vs.saved")); }, onError: (e) => toast.error(e.message) });
+  const archiveMut = trpc.data.vessels.remove.useMutation({ onSuccess: () => { utils.data.vessels.list.invalidate(); toast.success(t("c.archive")); }, onError: (e) => toast.error(e.message) });
+  const restoreMut = trpc.data.vessels.restore.useMutation({ onSuccess: () => { utils.data.vessels.list.invalidate(); toast.success(t("c.restore")); }, onError: (e) => toast.error(e.message) });
 
   const [nameQ, setNameQ] = useState("");
   const [typeF, setTypeF] = useState(ALL);
@@ -122,6 +127,7 @@ export default function VesselsCenter() {
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {canEdit && <button className="btn-blue" style={{ padding: "0 18px" }} onClick={() => setShowCreate(true)}><Plus size={16} /> {t("vs.add")}</button>}
+            <ScopeSwitch value={scope} onChange={(v) => setScope(v)} />
             <span style={{ flex: 1 }} />
             <button className="btn-outline-blue" style={{ width: "auto", padding: "0 18px" }} onClick={exportCsv}><Download size={15} /> {t("c.export")}</button>
             <button className="btn-outline-blue" style={{ width: "auto", padding: "0 18px" }} onClick={() => window.print()}><Printer size={15} /> {t("c.print")}</button>
@@ -144,7 +150,7 @@ export default function VesselsCenter() {
                     <td style={{ fontSize: 12 }}>{v.place}</td>
                     <td><span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 12, fontWeight: 700, color: on ? "#15803d" : "#64748b" }}><i style={{ width: 8, height: 8, borderRadius: "50%", background: on ? "#16a34a" : "#94a3b8" }} />{on ? t("c.active") : t("c.inactive")}</span></td>
                     <td><span className={`bdg ${rc === "low" ? "bdg-green" : rc === "med" ? "bdg-yellow" : "bdg-red"}`}>{rl(v.riskScore)}</span></td>
-                    <td><div className="mock-actions"><button className="icon-sq" onClick={(e) => { e.stopPropagation(); navigate(`/embarcations/${v.id}`); }}><Eye size={15} /></button>{canEdit && <button className="icon-sq" onClick={(e) => { e.stopPropagation(); navigate(`/embarcations/${v.id}`); }}><Pencil size={15} /></button>}<button className="icon-sq" onClick={(e) => { e.stopPropagation(); setSelectedId(v.id); }}><MoreVertical size={15} /></button></div></td>
+                    <td><div className="mock-actions"><button className="icon-sq" onClick={(e) => { e.stopPropagation(); navigate(`/embarcations/${v.id}`); }}><Eye size={15} /></button>{canEdit && <button className="icon-sq" onClick={(e) => { e.stopPropagation(); navigate(`/embarcations/${v.id}`); }}><Pencil size={15} /></button>}{canEdit && <ArchiveButton archived={scope === "archived"} label={`${v.registrationNumber} - ${v.name ?? ""}`} onConfirm={() => (scope === "archived" ? restoreMut.mutateAsync({ id: v.id }) : archiveMut.mutateAsync({ id: v.id }))} />}<button className="icon-sq" onClick={(e) => { e.stopPropagation(); setSelectedId(v.id); }}><MoreVertical size={15} /></button></div></td>
                   </tr>); })}
               </tbody></table>)}
             </div>

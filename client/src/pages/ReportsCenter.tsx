@@ -7,6 +7,8 @@ import AppShell from "@/components/AppShell";
 import { trpc } from "@/lib/trpc";
 import { useLang } from "@/i18n/LanguageContext";
 import { ChartSkeleton, EmptyState, ErrorState, KpiSkeleton, TableSkeleton } from "@/components/DashboardStates";
+import { ArchiveButton } from "@/components/ArchiveButton";
+import { ScopeSwitch, type ArchiveScope } from "@/components/ScopeSwitch";
 
 type Conf = "ok" | "minor" | "major" | "crit";
 function confOf(risk: number): Conf { if (risk >= 75) return "crit"; if (risk >= 50) return "major"; if (risk >= 25) return "minor"; return "ok"; }
@@ -18,7 +20,8 @@ export default function ReportsCenter() {
   const utils = trpc.useUtils();
   const me = trpc.auth.me.useQuery(undefined, { retry: false });
   const isObserver = me.data?.appRole === "observer";
-  const reportsQ = trpc.data.reports.list.useQuery({ limit: 500, offset: 0 }, { refetchOnWindowFocus: false });
+  const [scope, setScope] = useState<ArchiveScope>("active");
+  const reportsQ = trpc.data.reports.list.useQuery({ limit: 500, offset: 0, scope }, { refetchOnWindowFocus: false });
   const inspectionsQ = trpc.data.inspections.list.useQuery({ limit: 500, offset: 0 }, { refetchOnWindowFocus: false });
   const vesselsQ = trpc.data.vessels.list.useQuery(undefined, { refetchOnWindowFocus: false });
   const createMut = trpc.data.reports.createFromInspection.useMutation({ onSuccess: () => { utils.data.reports.list.invalidate(); toast.success("OK"); }, onError: (e) => toast.error(e.message) });
@@ -30,6 +33,14 @@ export default function ReportsCenter() {
   const [placeF, setPlaceF] = useState("__ALL__");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const archiveMut = trpc.data.reports.archive.useMutation({
+    onSuccess: () => { utils.data.reports.list.invalidate(); toast.success(t("c.archive")); },
+    onError: (e) => toast.error(e.message),
+  });
+  const restoreMut = trpc.data.reports.restore.useMutation({
+    onSuccess: () => { utils.data.reports.list.invalidate(); toast.success(t("c.restore")); },
+    onError: (e) => toast.error(e.message),
+  });
   const PAGE = 6;
   const confLabel = (c: Conf) => (c === "ok" ? t("conf.compliant") : c === "minor" ? t("conf.minor") : c === "major" ? t("conf.major") : t("conf.critical"));
 
@@ -134,7 +145,7 @@ export default function ReportsCenter() {
           </div>
 
           <div className="mock-card">
-            <div className="mock-card-h"><h3><FileText size={16} /> {t("rp.list")}</h3>{!isObserver && <button className="btn-blue" style={{ height: 38, fontSize: 13, padding: "0 14px" }} onClick={() => { const first = (inspectionsQ.data ?? [])[0]; if (!first) { toast.error(t("rp.needInsp")); return; } createMut.mutate({ inspectionId: first.id }); }}><Plus size={15} /> {t("rp.new")}</button>}</div>
+            <div className="mock-card-h"><h3><FileText size={16} /> {t("rp.list")}</h3><div style={{ display: "flex", gap: 10, alignItems: "center" }}><ScopeSwitch value={scope} onChange={(v) => { setScope(v); setPage(1); setSelectedId(null); }} />{!isObserver && <button className="btn-blue" style={{ height: 38, fontSize: 13, padding: "0 14px" }} onClick={() => { const first = (inspectionsQ.data ?? [])[0]; if (!first) { toast.error(t("rp.needInsp")); return; } createMut.mutate({ inspectionId: first.id }); }}><Plus size={15} /> {t("rp.new")}</button>}</div></div>
             <div style={{ overflowX: "auto", padding: "0 12px" }}>
               {isLoading ? <TableSkeleton rows={6} cols={7} /> : paged.length === 0 ? (
                 <EmptyState title={t("rp.empty")} hint={q || typeF !== "__ALL__" || statusF !== "__ALL__" || placeF !== "__ALL__" ? t("c.noResult") : undefined} action={!isObserver ? <Link href="/inspections/new" className="btn-blue" style={{ padding: "0 16px", textDecoration: "none" }}>{t("rp.newInsp")}</Link> : undefined} />
@@ -149,7 +160,7 @@ export default function ReportsCenter() {
                     <td style={{ fontSize: 11.5 }}>{new Date(r.createdAt).toLocaleDateString(locale)}<br />{new Date(r.createdAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</td>
                     <td><span className={`bdg ${badgeOf(conformity)}`}>{conformity === "ok" ? <Check size={12} /> : <AlertTriangle size={12} />}{confLabel(conformity)}</span></td>
                     <td><span className="score-ring" style={{ background: `conic-gradient(${score >= 80 ? "#16a34a" : score >= 60 ? "#f59e0b" : "#ef4444"} ${score}%, #eef2f6 ${score}%)` }}><b>{score}%</b></span></td>
-                    <td><div className="mock-actions"><button className="icon-sq" title={t("c.view")} onClick={(e) => { e.stopPropagation(); navigate(`/rapports/${r.id}`); }}><Eye size={15} /></button><button className="icon-sq" title="PDF" onClick={(e) => { e.stopPropagation(); window.open(`/api/reports/${r.id}/pdf`, "_blank"); }}><Download size={15} /></button><button className="icon-sq" title="···" onClick={(e) => { e.stopPropagation(); setSelectedId(r.id); }}><MoreVertical size={15} /></button></div></td>
+                    <td><div className="mock-actions"><button className="icon-sq" title={t("c.view")} onClick={(e) => { e.stopPropagation(); navigate(`/rapports/${r.id}`); }}><Eye size={15} /></button><button className="icon-sq" title="PDF" onClick={(e) => { e.stopPropagation(); window.open(`/api/reports/${r.id}/pdf`, "_blank"); }}><Download size={15} /></button>{!isObserver && <ArchiveButton archived={scope === "archived"} label={r.reference} onConfirm={() => (scope === "archived" ? restoreMut.mutateAsync({ id: r.id }) : archiveMut.mutateAsync({ id: r.id }))} />}<button className="icon-sq" title="···" onClick={(e) => { e.stopPropagation(); setSelectedId(r.id); }}><MoreVertical size={15} /></button></div></td>
                   </tr>
                 ))}
               </tbody></table>)}

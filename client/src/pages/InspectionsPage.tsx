@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, CalendarDays, Check, ClipboardList, Clock3, Filter, MapPin, MoreHorizontal, Plus, Search } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { toast } from "sonner";
 import AppShell from "@/components/AppShell";
 import { trpc } from "@/lib/trpc";
 import { useLang } from "@/i18n/LanguageContext";
 import { EmptyState, ErrorState, KpiSkeleton, TableSkeleton } from "@/components/DashboardStates";
+import { ArchiveButton } from "@/components/ArchiveButton";
+import { ScopeSwitch, type ArchiveScope } from "@/components/ScopeSwitch";
 
 const ALL = "__ALL__";
 function riskCode(s: number) { if (s >= 50) return "high"; if (s >= 25) return "med"; return "low"; }
@@ -13,8 +16,14 @@ function statusCode(s: string) { if (s === "validee" || s === "terminee" || s ==
 export default function InspectionsPage() {
   const { t, locale } = useLang();
   const [, navigate] = useLocation();
-  const listQ = trpc.data.inspections.list.useQuery({ limit: 500, offset: 0 }, { refetchOnWindowFocus: false });
+  const [scope, setScope] = useState<ArchiveScope>("active");
+  const listQ = trpc.data.inspections.list.useQuery({ limit: 500, offset: 0, scope }, { refetchOnWindowFocus: false });
   const vesselsQ = trpc.data.vessels.list.useQuery(undefined, { refetchOnWindowFocus: false });
+  const utils = trpc.useUtils();
+  const me = trpc.auth.me.useQuery(undefined, { retry: false });
+  const isObserver = me.data?.appRole === "observer";
+  const archiveMut = trpc.data.inspections.archive.useMutation({ onSuccess: () => { utils.data.inspections.list.invalidate(); toast.success(t("c.archive")); }, onError: (e) => toast.error(e.message) });
+  const restoreMut = trpc.data.inspections.restore.useMutation({ onSuccess: () => { utils.data.inspections.list.invalidate(); toast.success(t("c.restore")); }, onError: (e) => toast.error(e.message) });
   const [q, setQ] = useState(""); const [period, setPeriod] = useState("d7"); const [placeF, setPlaceF] = useState(ALL); const [riskF, setRiskF] = useState(ALL); const [statusF, setStatusF] = useState(ALL);
   const [page, setPage] = useState(1); const [sel, setSel] = useState<number[]>([]);
   const PAGE = 8;
@@ -47,7 +56,7 @@ export default function InspectionsPage() {
     <AppShell>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
         <div><h1 className="mock-h1">{t("insp.title")}</h1><p className="mock-sub">{t("insp.sub")}</p></div>
-        <Link href="/inspections/new" className="btn-blue" style={{ padding: "0 18px", textDecoration: "none" }}><Plus size={16} /> {t("insp.new")}</Link>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}><ScopeSwitch value={scope} onChange={(v) => { setScope(v); setPage(1); }} /><Link href="/inspections/new" className="btn-blue" style={{ padding: "0 18px", textDecoration: "none" }}><Plus size={16} /> {t("insp.new")}</Link></div>
       </div>
       <div style={{ height: 14 }} />
 
@@ -91,7 +100,7 @@ export default function InspectionsPage() {
                 <td><span className={`bdg ${rc === "high" ? "bdg-orange" : rc === "med" ? "bdg-yellow" : "bdg-green"}`}>{rl(i.riskScore)}</span></td>
                 <td><span className={`bdg ${sc === "closed" ? "bdg-green" : sc === "verify" ? "bdg-purple" : "bdg-cyan"}`}>{sl(i.status)}</span></td>
                 <td style={{ fontSize: 12 }}>{i.agentId ? `Agent #${i.agentId}` : "-"}</td>
-                <td><button className="icon-sq" onClick={(e) => { e.stopPropagation(); navigate(`/inspections/${i.id}`); }}><MoreHorizontal size={15} /></button></td>
+                <td><div className="mock-actions"><button className="icon-sq" onClick={(e) => { e.stopPropagation(); navigate(`/inspections/${i.id}`); }}><MoreHorizontal size={15} /></button>{!isObserver && <ArchiveButton archived={scope === "archived"} label={`Inspection #${i.id} - ${i.place}`} onConfirm={() => (scope === "archived" ? restoreMut.mutateAsync({ id: i.id }) : archiveMut.mutateAsync({ id: i.id }))} />}</div></td>
               </tr>); })}
           </tbody></table>)}
         </div>

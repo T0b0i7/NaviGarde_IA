@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, isNull, like } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
 import { alertHistory, alerts, appSettings, authSessions, auditEvents, InsertUser, inspectionFindings, inspectionHistory, inspectionImages, inspections, maritimeBulletins, maritimeZones, notifications, passwordResetTokens, reportVersions, reports, users, vessels, vesselPositions, weatherBulletins } from "../drizzle/schema";
@@ -88,10 +88,32 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function listVessels(limit = 100, offset = 0) {
+export type ArchiveScope = "active" | "archived" | "all";
+
+function archiveWhere(column: Parameters<typeof isNull>[0], scope: ArchiveScope = "active") {
+  if (scope === "archived") return isNotNull(column);
+  if (scope === "all") return undefined;
+  return isNull(column);
+}
+
+export async function listVessels(limit = 100, offset = 0, scope: ArchiveScope = "active") {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(vessels).orderBy(desc(vessels.updatedAt)).limit(limit).offset(offset);
+  return db.select().from(vessels).where(archiveWhere(vessels.archivedAt, scope)).orderBy(desc(vessels.updatedAt)).limit(limit).offset(offset);
+}
+
+export async function archiveVessel(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(vessels).set({ archivedAt: new Date(), archivedBy: userId }).where(eq(vessels.id, id));
+  return { success: true };
+}
+
+export async function restoreVessel(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(vessels).set({ archivedAt: null, archivedBy: null }).where(eq(vessels.id, id));
+  return { success: true };
 }
 
 export async function createVessel(input: typeof vessels.$inferInsert) {
@@ -115,11 +137,25 @@ export async function deleteVessel(id: number) {
   return { success: true };
 }
 
-export async function listAlerts(limit = 100, offset = 0, vesselId?: number) {
+export async function listAlerts(limit = 100, offset = 0, vesselId?: number, scope: ArchiveScope = "active") {
   const db = await getDb();
   if (!db) return [];
-  if (vesselId) return db.select().from(alerts).where(eq(alerts.vesselId, vesselId)).orderBy(desc(alerts.createdAt)).limit(limit).offset(offset);
-  return db.select().from(alerts).orderBy(desc(alerts.createdAt)).limit(limit).offset(offset);
+  const where = vesselId ? and(archiveWhere(alerts.archivedAt, scope), eq(alerts.vesselId, vesselId)) : archiveWhere(alerts.archivedAt, scope);
+  return db.select().from(alerts).where(where).orderBy(desc(alerts.createdAt)).limit(limit).offset(offset);
+}
+
+export async function archiveAlert(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(alerts).set({ archivedAt: new Date(), archivedBy: userId }).where(eq(alerts.id, id));
+  return { success: true };
+}
+
+export async function restoreAlert(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(alerts).set({ archivedAt: null, archivedBy: null }).where(eq(alerts.id, id));
+  return { success: true };
 }
 
 export async function getAlert(id: number) {
@@ -280,16 +316,68 @@ export async function consumePasswordResetToken(tokenHash: string) {
   return token;
 }
 
-export async function listUsers() {
+export async function listUsers(scope: ArchiveScope = "active") {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  return db.select({ id: users.id, name: users.name, email: users.email, appRole: users.appRole, isActive: users.isActive, createdAt: users.createdAt, lastSignedIn: users.lastSignedIn }).from(users).orderBy(desc(users.createdAt));
+  return db.select({ id: users.id, name: users.name, email: users.email, appRole: users.appRole, isActive: users.isActive, archivedAt: users.archivedAt, createdAt: users.createdAt, lastSignedIn: users.lastSignedIn }).from(users).where(archiveWhere(users.archivedAt, scope)).orderBy(desc(users.createdAt));
 }
 
-export async function listMaritimeBulletins() { const db = await getDb(); if (!db) throw new Error("Database is not available"); return db.select().from(maritimeBulletins).orderBy(desc(maritimeBulletins.createdAt)); }
+export async function archiveUser(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(users).set({ archivedAt: new Date(), archivedBy: userId, isActive: 0 }).where(eq(users.id, id));
+  return { success: true };
+}
+
+export async function restoreUser(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(users).set({ archivedAt: null, archivedBy: null, isActive: 1 }).where(eq(users.id, id));
+  return { success: true };
+}
+
+export async function listMaritimeBulletins(scope: ArchiveScope = "active") { const db = await getDb(); if (!db) throw new Error("Database is not available"); return db.select().from(maritimeBulletins).where(archiveWhere(maritimeBulletins.archivedAt, scope)).orderBy(desc(maritimeBulletins.createdAt)); }
+export async function archiveMaritimeBulletin(id: number, userId: number) { const db = await getDb(); if (!db) throw new Error("Database is not available"); await db.update(maritimeBulletins).set({ archivedAt: new Date(), archivedBy: userId }).where(eq(maritimeBulletins.id, id)); return { success: true }; }
+export async function restoreMaritimeBulletin(id: number) { const db = await getDb(); if (!db) throw new Error("Database is not available"); await db.update(maritimeBulletins).set({ archivedAt: null, archivedBy: null }).where(eq(maritimeBulletins.id, id)); return { success: true }; }
 export async function createMaritimeBulletin(input: typeof maritimeBulletins.$inferInsert) { const db = await getDb(); if (!db) throw new Error("Database is not available"); const result = await db.insert(maritimeBulletins).values(input); return { id: Number(result[0].insertId) }; }
 export async function updateMaritimeBulletin(id: number, input: Partial<typeof maritimeBulletins.$inferInsert>) { const db = await getDb(); if (!db) throw new Error("Database is not available"); await db.update(maritimeBulletins).set({ ...input, updatedAt: new Date() }).where(eq(maritimeBulletins.id, id)); return { success: true }; }
-export async function listAuditEvents() { const db = await getDb(); if (!db) throw new Error("Database is not available"); return db.select().from(auditEvents).orderBy(desc(auditEvents.createdAt)).limit(500); }
+export type AuditFilters = { limit?: number; action?: string; entityType?: string; userId?: number; search?: string };
+
+function auditWhere(filters: AuditFilters) {
+  const conds = [
+    filters.action ? eq(auditEvents.action, filters.action) : undefined,
+    filters.entityType ? eq(auditEvents.entityType, filters.entityType) : undefined,
+    filters.userId ? eq(auditEvents.userId, filters.userId) : undefined,
+    filters.search ? like(auditEvents.metadata, `%${filters.search}%`) : undefined,
+  ].filter((c): c is NonNullable<typeof c> => Boolean(c));
+  return conds.length ? and(...conds) : undefined;
+}
+
+export async function listAuditEvents(filters: AuditFilters = {}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db
+    .select({ event: auditEvents, userName: users.name, userEmail: users.email, userRole: users.appRole })
+    .from(auditEvents)
+    .leftJoin(users, eq(auditEvents.userId, users.id))
+    .where(auditWhere(filters))
+    .orderBy(desc(auditEvents.createdAt))
+    .limit(filters.limit ?? 500);
+  return rows.map((row) => ({ ...row.event, userName: row.userName, userEmail: row.userEmail, userRole: row.userRole }));
+}
+
+export async function getAuditEvent(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db
+    .select({ event: auditEvents, userName: users.name, userEmail: users.email, userRole: users.appRole })
+    .from(auditEvents)
+    .leftJoin(users, eq(auditEvents.userId, users.id))
+    .where(eq(auditEvents.id, id))
+    .limit(1);
+  if (!rows[0]) return undefined;
+  return { ...rows[0].event, userName: rows[0].userName, userEmail: rows[0].userEmail, userRole: rows[0].userRole };
+}
 export async function addAuditEvent(input: typeof auditEvents.$inferInsert) { const db = await getDb(); if (!db) throw new Error("Database is not available"); const result = await db.insert(auditEvents).values(input); return { id: Number(result[0].insertId) }; }
 export async function getAppSettings() { const db = await getDb(); if (!db) throw new Error("Database is not available"); return db.select().from(appSettings); }
 export async function upsertAppSetting(settingKey: string, value: string, updatedBy: number) { const db = await getDb(); if (!db) throw new Error("Database is not available"); await db.insert(appSettings).values({ settingKey, value, updatedBy }).onDuplicateKeyUpdate({ set: { value, updatedBy, updatedAt: new Date() } }); return { success: true }; }
@@ -316,11 +404,25 @@ export async function getVesselByRegistration(registrationNumber: string) {
   return rows[0];
 }
 
-export async function listInspections(limit = 100, offset = 0, vesselId?: number) {
+export async function listInspections(limit = 100, offset = 0, vesselId?: number, scope: ArchiveScope = "active") {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  if (vesselId) return db.select().from(inspections).where(eq(inspections.vesselId, vesselId)).orderBy(desc(inspections.inspectionDate)).limit(limit).offset(offset);
-  return db.select().from(inspections).orderBy(desc(inspections.inspectionDate)).limit(limit).offset(offset);
+  const where = vesselId ? and(archiveWhere(inspections.archivedAt, scope), eq(inspections.vesselId, vesselId)) : archiveWhere(inspections.archivedAt, scope);
+  return db.select().from(inspections).where(where).orderBy(desc(inspections.inspectionDate)).limit(limit).offset(offset);
+}
+
+export async function archiveInspection(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(inspections).set({ archivedAt: new Date(), archivedBy: userId }).where(eq(inspections.id, id));
+  return { success: true };
+}
+
+export async function restoreInspection(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(inspections).set({ archivedAt: null, archivedBy: null }).where(eq(inspections.id, id));
+  return { success: true };
 }
 
 export async function getInspection(id: number) {
@@ -363,10 +465,24 @@ export async function listInspectionFindings(inspectionId: number) {
   return db.select().from(inspectionFindings).where(eq(inspectionFindings.inspectionId, inspectionId)).orderBy(desc(inspectionFindings.analyzedAt));
 }
 
-export async function listReports(limit = 100, offset = 0) {
+export async function listReports(limit = 100, offset = 0, scope: ArchiveScope = "active") {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  return db.select().from(reports).orderBy(desc(reports.createdAt)).limit(limit).offset(offset);
+  return db.select().from(reports).where(archiveWhere(reports.archivedAt, scope)).orderBy(desc(reports.createdAt)).limit(limit).offset(offset);
+}
+
+export async function archiveReport(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(reports).set({ archivedAt: new Date(), archivedBy: userId }).where(eq(reports.id, id));
+  return { success: true };
+}
+
+export async function restoreReport(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(reports).set({ archivedAt: null, archivedBy: null }).where(eq(reports.id, id));
+  return { success: true };
 }
 
 export async function dashboardMetrics(period: "24 heures" | "7 jours" | "30 jours") {

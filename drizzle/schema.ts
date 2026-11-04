@@ -10,6 +10,8 @@ export const users = mysqlTable("users", {
   appRole: mysqlEnum("appRole", ["agent", "supervisor", "admin", "observer"]).default("agent").notNull(),
   passwordHash: varchar("passwordHash", { length: 255 }),
   isActive: int("isActive").default(1).notNull(),
+  archivedAt: timestamp("archivedAt"),
+  archivedBy: int("archivedBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -51,9 +53,11 @@ export const vessels = mysqlTable("vessels", {
   longitude: decimal("longitude", { precision: 10, scale: 7 }),
   status: mysqlEnum("status", ["conforme", "sous_surveillance", "immobilisee", "non_enregistree"]).default("conforme").notNull(),
   riskScore: int("riskScore").default(0).notNull(),
+  archivedAt: timestamp("archivedAt"),
+  archivedBy: int("archivedBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-}, (table) => ({ placeIndex: index("vessels_place_idx").on(table.place), statusIndex: index("vessels_status_idx").on(table.status) }));
+}, (table) => ({ placeIndex: index("vessels_place_idx").on(table.place), statusIndex: index("vessels_status_idx").on(table.status), archivedIndex: index("vessels_archived_idx").on(table.archivedAt) }));
 
 export const inspections = mysqlTable("inspections", {
   id: int("id").autoincrement().primaryKey(),
@@ -79,9 +83,11 @@ export const inspections = mysqlTable("inspections", {
   humanNotes: text("humanNotes"),
   validatedBy: int("validatedBy"),
   validatedAt: timestamp("validatedAt"),
+  archivedAt: timestamp("archivedAt"),
+  archivedBy: int("archivedBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-}, (table) => ({ vesselIndex: index("inspections_vessel_idx").on(table.vesselId), dateIndex: index("inspections_date_idx").on(table.inspectionDate) }));
+}, (table) => ({ vesselIndex: index("inspections_vessel_idx").on(table.vesselId), dateIndex: index("inspections_date_idx").on(table.inspectionDate), archivedIndex: index("inspections_archived_idx").on(table.archivedAt) }));
 
 export const inspectionImages = mysqlTable("inspection_images", {
   id: int("id").autoincrement().primaryKey(),
@@ -121,9 +127,11 @@ export const alerts = mysqlTable("alerts", {
   urgency: mysqlEnum("urgency", ["information", "elevee", "urgent", "detresse"]).default("information").notNull(),
   status: mysqlEnum("status", ["nouvelle", "en_cours", "affectee", "resolue", "cloturee", "prise_en_charge"]).default("nouvelle").notNull(),
   source: mysqlEnum("source", ["agent", "marin", "ia", "meteo", "systeme"]).default("agent").notNull(),
+  archivedAt: timestamp("archivedAt"),
+  archivedBy: int("archivedBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   resolvedAt: timestamp("resolvedAt"),
-}, (table) => ({ statusIndex: index("alerts_status_idx").on(table.status), createdIndex: index("alerts_created_idx").on(table.createdAt) }));
+}, (table) => ({ statusIndex: index("alerts_status_idx").on(table.status), createdIndex: index("alerts_created_idx").on(table.createdAt), archivedIndex: index("alerts_archived_idx").on(table.archivedAt) }));
 
 export const inspectionHistory = mysqlTable("inspection_history", {
   id: int("id").autoincrement().primaryKey(),
@@ -162,7 +170,9 @@ export const reports = mysqlTable("reports", {
   pdfStorageKey: varchar("pdfStorageKey", { length: 512 }),
   pdfUrl: varchar("pdfUrl", { length: 1000 }),
   pdfSha256: varchar("pdfSha256", { length: 64 }),
-});
+  archivedAt: timestamp("archivedAt"),
+  archivedBy: int("archivedBy"),
+}, (table) => ({ archivedIndex: index("reports_archived_idx").on(table.archivedAt) }));
 
 export const reportVersions = mysqlTable("report_versions", {
   id: int("id").autoincrement().primaryKey(),
@@ -191,9 +201,12 @@ export const auditEvents = mysqlTable("audit_events", {
   action: varchar("action", { length: 120 }).notNull(),
   entityType: varchar("entityType", { length: 80 }).notNull(),
   entityId: varchar("entityId", { length: 80 }),
+  entityLabel: varchar("entityLabel", { length: 255 }),
   metadata: text("metadata"),
+  ip: varchar("ip", { length: 64 }),
+  userAgent: varchar("userAgent", { length: 255 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => ({ createdIndex: index("audit_events_created_idx").on(table.createdAt), actionIndex: index("audit_events_action_idx").on(table.action) }));
 
 export const maritimeZones = mysqlTable("maritime_zones", {
   id: int("id").autoincrement().primaryKey(),
@@ -230,9 +243,11 @@ export const maritimeBulletins = mysqlTable("maritime_bulletins", {
   status: mysqlEnum("status", ["brouillon", "publie", "archive"]).default("brouillon").notNull(),
   createdBy: int("createdBy"),
   publishedAt: timestamp("publishedAt"),
+  archivedAt: timestamp("archivedAt"),
+  archivedBy: int("archivedBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-}, (table) => ({ statusIndex: index("maritime_bulletins_status_idx").on(table.status), zoneIndex: index("maritime_bulletins_zone_idx").on(table.maritimeZone), createdIndex: index("maritime_bulletins_created_idx").on(table.createdAt) }));
+}, (table) => ({ statusIndex: index("maritime_bulletins_status_idx").on(table.status), zoneIndex: index("maritime_bulletins_zone_idx").on(table.maritimeZone), createdIndex: index("maritime_bulletins_created_idx").on(table.createdAt), archivedIndex: index("maritime_bulletins_archived_idx").on(table.archivedAt) }));
 
 export const appSettings = mysqlTable("app_settings", {
   id: int("id").autoincrement().primaryKey(),

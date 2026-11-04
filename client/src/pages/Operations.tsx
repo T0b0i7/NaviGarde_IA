@@ -1,11 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
-import { AlertTriangle, Anchor, Bell, CalendarDays, Check, CheckCheck, ChevronRight, Clock3, Download, Eye, FileText, Filter, History, MapPin, Mic, Pencil, Plus, RotateCcw, Search, Send, ShieldCheck, Trash2, Users, X, EyeOff } from "lucide-react";
+import { AlertTriangle, Anchor, Bell, CalendarDays, Check, CheckCheck, ChevronRight, Clock3, Copy, Download, Eye, FileText, Filter, History, MapPin, Mic, Pencil, Plus, RotateCcw, Search, Send, ShieldCheck, Trash2, Users, X, EyeOff } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { trpc } from "@/lib/trpc";
 import { useLang } from "@/i18n/LanguageContext";
 import { EmptyState, ErrorState, KpiSkeleton, Skeleton, TableSkeleton } from "@/components/DashboardStates";
+import { ArchiveButton } from "@/components/ArchiveButton";
+import { ScopeSwitch, type ArchiveScope } from "@/components/ScopeSwitch";
 
 type Level = "Urgente" | "Importante" | "Moyenne" | "Résolue";
 function levelOf(a: { urgency: string; status: string }): Level {
@@ -22,10 +24,13 @@ export function AlertsPage() {
   const utils = trpc.useUtils();
   const me = trpc.auth.me.useQuery(undefined, { retry: false });
   const canManage = me.data?.appRole === "admin" || me.data?.appRole === "supervisor";
-  const q = trpc.data.alerts.list.useQuery({ limit: 500, offset: 0 }, { refetchOnWindowFocus: false, refetchInterval: 20000 });
+  const [scope, setScope] = useState<ArchiveScope>("active");
+  const q = trpc.data.alerts.list.useQuery({ limit: 500, offset: 0, scope }, { refetchOnWindowFocus: false, refetchInterval: 20000 });
   const vesselsQ = trpc.data.vessels.list.useQuery(undefined, { refetchOnWindowFocus: false });
   const update = trpc.data.alerts.update.useMutation({ onSuccess: () => { utils.data.alerts.list.invalidate(); toast.success("OK"); }, onError: (e) => toast.error(e.message) });
   const create = trpc.data.alerts.create.useMutation({ onSuccess: () => { utils.data.alerts.list.invalidate(); setShowCreate(false); toast.success("OK"); }, onError: (e) => toast.error(e.message) });
+  const archiveMut = trpc.data.alerts.remove.useMutation({ onSuccess: () => { utils.data.alerts.list.invalidate(); toast.success(t("c.archive")); }, onError: (e) => toast.error(e.message) });
+  const restoreMut = trpc.data.alerts.restore.useMutation({ onSuccess: () => { utils.data.alerts.list.invalidate(); toast.success(t("c.restore")); }, onError: (e) => toast.error(e.message) });
 
   const [tab, setTab] = useState<"Toutes" | Level>("Toutes");
   const [period, setPeriod] = useState("d7");
@@ -86,7 +91,8 @@ export function AlertsPage() {
               })}
               <span style={{ flex: 1 }} />
               <span style={{ fontSize: 12, color: "#5b7a96" }}>{t("al.sortBy")} <strong>{t("al.newest")}</strong></span>
-              <button className="btn-blue" style={{ height: 38, fontSize: 12.5, padding: "0 14px" }} onClick={() => setShowCreate(true)}><Plus size={14} /> {t("al.new")}</button>
+              <ScopeSwitch value={scope} onChange={(v) => { setScope(v); setPage(1); setSelId(null); }} />
+              {canManage && <button className="btn-blue" style={{ height: 38, fontSize: 12.5, padding: "0 14px" }} onClick={() => setShowCreate(true)}><Plus size={14} /> {t("al.new")}</button>}
             </div>
             <div>
               {q.isLoading ? <div style={{ padding: 12, display: "grid", gap: 10 }}>{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} style={{ height: 72, borderRadius: 10 }} />)}</div>
@@ -100,6 +106,7 @@ export function AlertsPage() {
                   <div style={{ flex: 1, minWidth: 0 }}><strong style={{ fontSize: 13.5 }}>{a.title}</strong><div style={{ fontSize: 11.5, color: "#5b7a96" }}>{v ? `${v.name ?? ""} N°${v.registrationNumber}` : "-"}</div>
                     <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#0d7fdd", marginTop: 3 }}><span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}><MapPin size={11} /> {a.place}</span><span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}><CalendarDays size={11} /> {dt(a.createdAt)}</span></div></div>
                   <span className={`bdg ${lv === "Urgente" ? "bdg-red" : lv === "Importante" ? "bdg-orange" : lv === "Moyenne" ? "bdg-yellow" : "bdg-blue"}`}>{lvlLabel(lv)}</span>
+                  {canManage && <ArchiveButton archived={scope === "archived"} label={a.title} onConfirm={() => (scope === "archived" ? restoreMut.mutateAsync({ id: a.id }) : archiveMut.mutateAsync({ id: a.id }))} />}
                   <ChevronRight size={16} color="#0d7fdd" />
                 </div>); })}
             </div>
@@ -175,22 +182,67 @@ export function AuditPage() {
   const me = trpc.auth.me.useQuery(undefined, { retry: false });
   const isAllowed = me.data?.appRole === "admin" || me.data?.appRole === "supervisor";
   const [filter, setFilter] = useState("");
-  const q = trpc.data.audit.list.useQuery(undefined, { enabled: isAllowed, refetchInterval: 15000 });
-  const rows = (q.data ?? []).filter((i) => `${i.action} ${i.entityType} ${i.entityId ?? ""}`.toLowerCase().includes(filter.toLowerCase()));
+  const [actionF, setActionF] = useState("__ALL__");
+  const [selected, setSelected] = useState<number | null>(null);
+  const q = trpc.data.audit.list.useQuery({ limit: 500 }, { enabled: isAllowed, refetchInterval: 20000 });
+  const detailQ = trpc.data.audit.get.useQuery({ id: selected ?? 0 }, { enabled: isAllowed && selected !== null });
+  const logAccess = trpc.data.audit.logAccess.useMutation();
+  useEffect(() => { if (isAllowed) logAccess.mutate(); }, [isAllowed]);
+  const all = q.data ?? [];
+  const actions = useMemo(() => [...new Set(all.map((i) => i.action))].sort(), [all]);
+  const rows = useMemo(() => all.filter((i) => {
+    if (actionF !== "__ALL__" && i.action !== actionF) return false;
+    const hay = `${i.action} ${i.entityType} ${i.entityId ?? ""} ${i.entityLabel ?? ""} ${i.userName ?? ""} ${i.userEmail ?? ""}`.toLowerCase();
+    return hay.includes(filter.toLowerCase());
+  }), [all, actionF, filter]);
+  const pretty = (raw?: string | null) => { if (!raw) return ""; try { return JSON.stringify(JSON.parse(raw), null, 2); } catch { return raw; } };
   if (me.isLoading) return <AppShell><div style={{ padding: 16, display: "grid", gap: 10 }}><Skeleton style={{ height: 28, width: 220 }} /><TableSkeleton rows={6} cols={3} /></div></AppShell>;
   if (!isAllowed) return <AppShell><EmptyState title={t("c.forbidden")} hint={t("au.forbiddenHint") ?? "Audit is restricted to supervisors and administrators."} /></AppShell>;
   return (
     <AppShell>
       <h1 className="mock-h1">{t("au.title")}</h1><p className="mock-sub">{t("au.sub", { n: rows.length })}</p><div style={{ height: 14 }} />
-      <div className="mock-card"><div className="mock-card-b" style={{ display: "flex", gap: 10 }}>
-        <div style={{ position: "relative", flex: 1 }}><Search size={16} style={{ position: "absolute", left: 12, top: 13, color: "#7b93a8" }} /><input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t("au.searchPh")} style={{ width: "100%", height: 44, border: "1.5px solid #d9e6f2", borderRadius: 10, padding: "0 12px 0 36px", fontSize: 13 }} /></div>
+      <div className="mock-card"><div className="mock-card-b" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ position: "relative", flex: "1 1 280px" }}><Search size={16} style={{ position: "absolute", left: 12, top: 13, color: "#7b93a8" }} /><input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t("au.searchPh")} style={{ width: "100%", height: 44, border: "1.5px solid #d9e6f2", borderRadius: 10, padding: "0 12px 0 36px", fontSize: 13 }} /></div>
+        <select value={actionF} onChange={(e) => setActionF(e.target.value)} style={{ height: 44, border: "1.5px solid #d9e6f2", borderRadius: 10, padding: "0 12px", fontSize: 13, fontWeight: 700, color: "#0a2a5e" }}><option value="__ALL__">{t("c.all")}</option>{actions.map((a) => <option key={a} value={a}>{a}</option>)}</select>
       </div>
       <div style={{ padding: "0 18px 18px" }}>{q.isLoading ? <TableSkeleton rows={6} cols={3} />
         : q.isError ? <ErrorState message={q.error.message} onRetry={() => q.refetch()} />
         : rows.length === 0 ? <EmptyState title={t("au.empty")} hint={filter ? t("c.noResultsHint") : undefined} />
         : rows.map((it) => (
-        <div key={it.id} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: "1px solid #eef3f8" }}><span style={{ width: 34, height: 34, borderRadius: "50%", background: "#eef5fb", color: "#0d7fdd", display: "grid", placeItems: "center", flexShrink: 0 }}><History size={15} /></span><div style={{ flex: 1 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}><strong style={{ fontSize: 13 }}>{it.action}</strong><small style={{ fontSize: 11, color: "#7b93a8" }}>{new Date(it.createdAt).toLocaleString(locale)}</small></div><div style={{ fontSize: 12, color: "#7b93a8" }}>{it.entityType}{it.entityId ? ` #${it.entityId}` : ""} · {t("au.user")} #{it.userId ?? "-"}</div></div></div>))}</div>
+        <button key={it.id} type="button" onClick={() => setSelected(it.id)} className="audit-row">
+          <span className="audit-ic"><History size={15} /></span>
+          <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+            <span style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}><strong style={{ fontSize: 13 }}>{it.action}</strong><small style={{ fontSize: 11, color: "#7b93a8" }}>{new Date(it.createdAt).toLocaleString(locale)}</small></span>
+            <span style={{ display: "block", fontSize: 12, color: "#7b93a8" }}>{it.entityLabel ?? `${it.entityType}${it.entityId ? ` #${it.entityId}` : ""}`} · {it.userName ?? `${t("au.user")} #${it.userId ?? "-"}`}</span>
+          </span>
+          <ChevronRight size={16} color="#7b93a8" />
+        </button>))}</div>
       </div>
+
+      {selected !== null && (
+        <div className="ng-modal-back" onClick={() => setSelected(null)}>
+          <div className="ng-modal wide" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+              <div><h3 style={{ margin: 0 }}>{t("au.details")}</h3><p style={{ margin: "4px 0 0" }}>{detailQ.data ? new Date(detailQ.data.createdAt).toLocaleString(locale) : "…"}</p></div>
+              <button className="icon-sq" onClick={() => setSelected(null)} aria-label={t("c.close")}><X size={15} /></button>
+            </div>
+            {detailQ.isLoading ? <TableSkeleton rows={3} cols={2} /> : detailQ.isError ? <ErrorState message={detailQ.error.message} onRetry={() => detailQ.refetch()} /> : detailQ.data ? (
+              <div style={{ display: "grid", gap: 8, marginTop: 14, fontSize: 12.5 }}>
+                <div className="audit-kv"><span>{t("au.action")}</span><strong>{detailQ.data.action}</strong></div>
+                <div className="audit-kv"><span>{t("au.entity")}</span><strong>{detailQ.data.entityType}{detailQ.data.entityId ? ` #${detailQ.data.entityId}` : ""}</strong></div>
+                {detailQ.data.entityLabel ? <div className="audit-kv"><span>{t("au.label")}</span><strong>{detailQ.data.entityLabel}</strong></div> : null}
+                <div className="audit-kv"><span>{t("au.user")}</span><strong>{detailQ.data.userName ?? `#${detailQ.data.userId ?? "-"}`}{detailQ.data.userEmail ? ` · ${detailQ.data.userEmail}` : ""}{detailQ.data.userRole ? ` (${detailQ.data.userRole})` : ""}</strong></div>
+                <div className="audit-kv"><span>{t("au.ip")}</span><strong>{detailQ.data.ip ?? "-"}</strong></div>
+                <div className="audit-kv"><span>{t("au.agent")}</span><strong style={{ overflowWrap: "anywhere" }}>{detailQ.data.userAgent ?? "-"}</strong></div>
+                <div><span style={{ fontSize: 11, fontWeight: 800, color: "#7b93a8", textTransform: "uppercase", letterSpacing: 0.4 }}>{t("au.metadata")}</span>
+                  <pre className="audit-json">{pretty(detailQ.data.metadata) || "-"}</pre>
+                  {detailQ.data.metadata ? <button className="ng-modal-ghost" style={{ marginTop: 8 }} onClick={() => { navigator.clipboard?.writeText(pretty(detailQ.data!.metadata)); toast.success(t("c.copied")); }}><Copy size={13} /> {t("c.copy")}</button> : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
@@ -200,10 +252,13 @@ export function UsersPage() {
   const utils = trpc.useUtils();
   const me = trpc.auth.me.useQuery(undefined, { retry: false });
   const isAdmin = me.data?.appRole === "admin";
-  const listQ = trpc.localAuth.users.list.useQuery(undefined, { enabled: isAdmin, retry: false });
+  const [scope, setScope] = useState<ArchiveScope>("active");
+  const listQ = trpc.localAuth.users.list.useQuery({ scope }, { enabled: isAdmin, retry: false });
   const createM = trpc.localAuth.users.create.useMutation({ onSuccess: async () => { await utils.localAuth.users.list.invalidate(); setShow(false); toast.success(t("us.created")); }, onError: (e) => toast.error(e.message) });
   const roleM = trpc.localAuth.users.changeRole.useMutation({ onSuccess: async () => { await utils.localAuth.users.list.invalidate(); toast.success(t("us.roleSaved")); }, onError: (e) => toast.error(e.message) });
   const activeM = trpc.localAuth.users.setActive.useMutation({ onSuccess: async () => { await utils.localAuth.users.list.invalidate(); toast.success(t("us.statusSaved")); }, onError: (e) => toast.error(e.message) });
+  const archiveM = trpc.localAuth.users.archive.useMutation({ onSuccess: async () => { await utils.localAuth.users.list.invalidate(); toast.success(t("c.archive")); }, onError: (e) => toast.error(e.message) });
+  const restoreM = trpc.localAuth.users.restore.useMutation({ onSuccess: async () => { await utils.localAuth.users.list.invalidate(); toast.success(t("c.restore")); }, onError: (e) => toast.error(e.message) });
   const [q, setQ] = useState(""); const [roleF, setRoleF] = useState("__ALL__"); const [statusF, setStatusF] = useState("__ALL__");
   const [page, setPage] = useState(1); const [show, setShow] = useState(false);
   const [n, setN] = useState(""); const [e, setE] = useState(""); const [p, setP] = useState(""); const [r, setR] = useState<"agent" | "supervisor" | "admin" | "observer">("agent");
@@ -246,6 +301,7 @@ export function UsersPage() {
         <select value={roleF} onChange={(ev) => { setRoleF(ev.target.value); setPage(1); }} style={{ height: 44, border: "1.5px solid #d9e6f2", borderRadius: 10, fontSize: 13, padding: "0 12px" }}><option value="__ALL__">{t("us.allRoles")}</option><option value="admin">{t("us.rAdmin")}</option><option value="supervisor">{t("us.rSup")}</option><option value="agent">{t("us.rAgent")}</option><option value="observer">{t("us.rObs")}</option></select>
         <select value={statusF} onChange={(ev) => { setStatusF(ev.target.value); setPage(1); }} style={{ height: 44, border: "1.5px solid #d9e6f2", borderRadius: 10, fontSize: 13, padding: "0 12px" }}><option value="__ALL__">{t("us.allStatus")}</option><option value="on">{t("c.active")}</option><option value="off">{t("c.inactive")}</option></select>
         <button className="btn-outline-blue" style={{ width: "auto", padding: "0 18px" }} onClick={() => toast.success("OK")}><Download size={15} /> {t("c.export")}</button>
+        <ScopeSwitch value={scope} onChange={(v) => { setScope(v); setPage(1); }} />
       </div></div>
 
       <div className="mock-card">
@@ -261,7 +317,7 @@ export function UsersPage() {
                 <td>{roleBadge(u.appRole)}<div style={{ marginTop: 6 }}><select value={u.appRole} onChange={(ev) => roleM.mutate({ id: u.id, appRole: ev.target.value as never })} style={{ fontSize: 11.5, border: "1px solid #d9e6f2", borderRadius: 7, padding: "3px 6px" }}><option value="agent">{t("us.rAgent")}</option><option value="supervisor">{t("us.rSup")}</option><option value="admin">{t("us.rAdmin")}</option><option value="observer">{t("us.rObs")}</option></select></div></td>
                 <td>{u.isActive ? <span className="bdg bdg-green"><Check size={11} /> {t("c.active")}</span> : <span className="bdg bdg-red"><X size={11} /> {t("c.inactive")}</span>}</td>
                 <td style={{ fontSize: 12 }}><CalendarDays size={12} color="#0d7fdd" /> {u.lastSignedIn ? new Date(u.lastSignedIn).toLocaleString(locale) : "-"}</td>
-                <td><div className="mock-actions"><button className="icon-sq" title={t("us.view")}><Eye size={14} /></button><button className="icon-sq" title={u.isActive ? t("us.suspend") : t("us.reactivate")} onClick={() => activeM.mutate({ id: u.id, isActive: !u.isActive })}>{u.isActive ? <EyeOff size={14} /> : <Pencil size={14} />}</button><button className="icon-sq danger" title={t("us.suspend")} onClick={() => { if (confirm(`${t("us.suspend")} ${u.email} ?`)) activeM.mutate({ id: u.id, isActive: false }); }}><Trash2 size={14} /></button></div></td>
+                <td><div className="mock-actions"><button className="icon-sq" title={t("us.view")}><Eye size={14} /></button><button className="icon-sq" title={u.isActive ? t("us.suspend") : t("us.reactivate")} onClick={() => activeM.mutate({ id: u.id, isActive: !u.isActive })}>{u.isActive ? <EyeOff size={14} /> : <Pencil size={14} />}</button><button className="icon-sq danger" title={t("us.suspend")} onClick={() => { if (confirm(`${t("us.suspend")} ${u.email} ?`)) activeM.mutate({ id: u.id, isActive: false }); }}><Trash2 size={14} /></button><ArchiveButton archived={scope === "archived"} label={`${u.name ?? ""} · ${u.email ?? ""}`} disabled={u.id === me.data?.id} onConfirm={() => (scope === "archived" ? restoreM.mutateAsync({ id: u.id }) : archiveM.mutateAsync({ id: u.id }))} /></div></td>
               </tr>
             ))}
           </tbody></table>)}

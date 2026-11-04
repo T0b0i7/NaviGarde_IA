@@ -174,3 +174,34 @@
   .mock-table:not(.anomalies-table) tbody td { border: 0; padding: 6px 8px; }
   .anomalies-table { min-width: 720px; }
 }
+
+/* ===== Archive / restore ===== */
+.icon-sq.restore { color: #16a34a; }
+.icon-sq.restore:hover { background: #ecfdf5; border-color: #16a34a; }
+.icon-sq:disabled { opacity: 0.45; cursor: not-allowed; }
+.scope-switch { display: inline-flex; gap: 4px; background: #eef5fb; border: 1px solid #dbe8f3; border-radius: 10px; padding: 3px; }
+.scope-switch button { border: 0; background: transparent; color: #5b7a96; font-size: 12.5px; font-weight: 700; padding: 7px 12px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.scope-switch button.on { background: #fff; color: #0a2a5e; box-shadow: 0 1px 4px rgba(10,42,94,0.12); }
+.scope-switch button span { font-size: 11px; font-weight: 800; color: #0d7fdd; background: #e6f2fd; border-radius: 999px; padding: 1px 7px; }
+.ng-modal-back { position: fixed; inset: 0; background: rgba(4,21,43,0.55); backdrop-filter: blur(2px); display: grid; place-items: center; z-index: 90; padding: 18px; }
+.ng-modal { width: 100%; max-width: 420px; background: #fff; border-radius: 16px; padding: 22px 22px 18px; box-shadow: 0 24px 70px rgba(6,41,75,0.32); text-align: left; }
+.ng-modal-ic { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: #eef5fb; color: #0d7fdd; margin-bottom: 12px; }
+.ng-modal h3 { margin: 0 0 6px; font-size: 17px; font-weight: 800; color: #0a2a5e; }
+.ng-modal p { margin: 0; font-size: 13px; line-height: 1.5; color: #5b7a96; }
+.ng-modal p strong { color: #0a2a5e; }
+.ng-modal-error { margin-top: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: 9px; padding: 9px 11px; font-size: 12.5px; }
+.ng-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.ng-modal-ghost { height: 40px; padding: 0 16px; border-radius: 10px; border: 1.5px solid #d3e2ef; background: #fff; color: #0a2a5e; font-weight: 700; font-size: 13px; cursor: pointer; }
+.ng-modal-actions .btn-blue, .ng-modal-actions .btn-danger { height: 40px; padding: 0 16px; font-size: 13px; }
+.spin { animation: ng-spin 0.9s linear infinite; }
+@keyframes ng-spin { to { transform: rotate(360deg); } }
+
+/* ===== Audit log ===== */
+.audit-row { display: flex; gap: 10px; align-items: center; width: 100%; padding: 11px 4px; border: 0; border-bottom: 1px solid #eef3f8; background: transparent; cursor: pointer; text-align: left; }
+.audit-row:hover { background: #f7fbff; }
+.audit-ic { width: 34px; height: 34px; border-radius: 50%; background: #eef5fb; color: #0d7fdd; display: grid; place-items: center; flex-shrink: 0; }
+.audit-kv { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px dashed #e6eef7; }
+.audit-kv span { color: #7b93a8; font-weight: 600; }
+.audit-kv strong { color: #0a2a5e; text-align: right; overflow-wrap: anywhere; }
+.audit-json { margin: 6px 0 0; background: #0f2540; color: #d7e6f7; border-radius: 10px; padding: 12px; font-size: 11.5px; line-height: 1.55; max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ng-modal.wide { max-width: 620px; }

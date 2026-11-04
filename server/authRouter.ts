@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { addAuditEvent, createLocalUser, createPasswordResetToken, getUserByEmail, listUsers, setUserActive, setUserPassword, updateUserRole } from "./db";
+import { addAuditEvent, archiveUser, createLocalUser, createPasswordResetToken, getUserByEmail, listUsers, restoreUser, setUserActive, setUserPassword, updateUserRole } from "./db";
 import { endLocalSession, hashPassword, hashToken, normalizeEmail, startLocalSession, verifyPassword } from "./_core/localAuth";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 
@@ -62,7 +62,18 @@ export const authRouter = router({
     return { success: true };
   }),
   users: router({
-    list: adminProcedure.query(() => listUsers()),
+    list: adminProcedure.input(z.object({ scope: z.enum(["active", "archived", "all"]).default("active") }).optional()).query(({ input }) => listUsers(input?.scope ?? "active")),
+    archive: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
+      if (input.id === ctx.user.id) throw new TRPCError({ code: "BAD_REQUEST", message: "Vous ne pouvez pas archiver votre propre compte." });
+      const result = await archiveUser(input.id, ctx.user.id);
+      await addAuditEvent({ userId: ctx.user.id, action: "user.archive", entityType: "user", entityId: String(input.id), ip: String(ctx.req.ip ?? "").slice(0, 64) });
+      return result;
+    }),
+    restore: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
+      const result = await restoreUser(input.id);
+      await addAuditEvent({ userId: ctx.user.id, action: "user.restore", entityType: "user", entityId: String(input.id) });
+      return result;
+    }),
     create: adminProcedure.input(z.object({ name: z.string().min(2).max(160), email: z.string().email(), password: passwordSchema, appRole: roleSchema })).mutation(async ({ input, ctx }) => {
       const email = normalizeEmail(input.email);
       if (await getUserByEmail(email)) throw new TRPCError({ code: "CONFLICT", message: "Cette adresse e-mail existe déjà." });
