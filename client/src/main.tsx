@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { CSRF_HEADER, readCsrfToken } from "@/lib/csrf";
 import { COOKIE_NAME, UNAUTHED_ERR_MSG } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, TRPCClientError } from "@trpc/client";
@@ -59,7 +60,11 @@ const trpcClient = trpc.createClient({
       url: "/api/trpc",
       transformer: superjson,
       headers() {
-        return {};
+        // Protection CSRF (double soumission) : le jeton est lisible dans le
+        // cookie posé par le serveur et renvoyé tel quel. Un site tiers ne
+        // peut pas lire ce cookie, donc pas construire cet en-tête.
+        const token = readCsrfToken();
+        return token ? { [CSRF_HEADER]: token } : {};
       },
       fetch(input, init) {
         return globalThis.fetch(input, {

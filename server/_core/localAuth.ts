@@ -42,12 +42,32 @@ function isSecureRequest(request?: Request) {
   return process.env.NODE_ENV === "production";
 }
 
+/**
+ * Politique SameSite du cookie de session.
+ *
+ * `none` n'est nécessaire QUE si l'application est affichée dans une iframe
+ * d'un autre site (aperçu hébergé). Partout ailleurs, `lax` protège mieux :
+ * aucun risque de requête cross-site authentifiée. La protection CSRF
+ * (`server/_core/csrf.ts`) couvre le cas `none`.
+ *
+ * Surcharge : `SESSION_SAMESITE=lax|strict|none`.
+ */
+function sessionSameSite(secure: boolean): "lax" | "strict" | "none" {
+  const configured = (process.env.SESSION_SAMESITE ?? "").trim().toLowerCase();
+  if (configured === "lax" || configured === "strict" || configured === "none") {
+    // `none` exige `Secure` : le navigateur rejette la combinaison inverse.
+    if (configured === "none" && !secure) return "lax";
+    return configured;
+  }
+  return secure ? "none" : "lax";
+}
+
 export function setLocalSessionCookie(response: Response, token: string, request?: Request) {
   const secure = isSecureRequest(request);
   response.cookie(LOCAL_SESSION_COOKIE, token, {
     httpOnly: true,
     secure,
-    sameSite: secure ? "none" : "lax",
+    sameSite: sessionSameSite(secure),
     path: "/",
     maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000,
   });
@@ -55,7 +75,7 @@ export function setLocalSessionCookie(response: Response, token: string, request
 
 export function clearLocalSessionCookie(response: Response, request?: Request) {
   const secure = isSecureRequest(request);
-  response.clearCookie(LOCAL_SESSION_COOKIE, { httpOnly: true, secure, sameSite: secure ? "none" : "lax", path: "/" });
+  response.clearCookie(LOCAL_SESSION_COOKIE, { httpOnly: true, secure, sameSite: sessionSameSite(secure), path: "/" });
 }
 
 export async function startLocalSession(userId: number, response: Response, request?: Request, days = SESSION_DAYS) {
@@ -66,7 +86,7 @@ export async function startLocalSession(userId: number, response: Response, requ
   response.cookie(LOCAL_SESSION_COOKIE, token, {
     httpOnly: true,
     secure,
-    sameSite: secure ? "none" : "lax",
+    sameSite: sessionSameSite(secure),
     path: "/",
     maxAge,
   });

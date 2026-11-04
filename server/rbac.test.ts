@@ -20,8 +20,11 @@ function makeContext(role: User["role"], appRole: User["appRole"], isActive = 1)
   };
   return {
     user,
+    // Contexte de test : la vérification CSRF est faite en amont par
+    // `createContext`, pas ici. `csrf.test.ts` couvre cette couche.
     req: { protocol: "https", headers: {} } as TrpcContext["req"],
     res: {} as TrpcContext["res"],
+    csrfToken: "",
   };
 }
 
